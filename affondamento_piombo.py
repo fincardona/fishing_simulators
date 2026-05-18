@@ -1,40 +1,37 @@
 import numpy as np
 from astropy.constants import g0
 
-VOLUME_BOTTIGLIA = 1.5e-3       # m^3
-MASSA_MARE_IN_BOTTIGLIA = 1.59  # Kg
-
-def converti_velocita(v):
-    """Converte da nodi a metri al secondo"""
+def nodi_a_ms(v):
     return v * 0.51444444444444
 
-def ottieni_sollevamento(p, m_p, rho_p, rho_m, eta_m, v):
-    """Calcola il sollevamento del piombo dal fondo in metri"""
-    N = 6 * np.pi * np.cbrt( 3 * m_p / 4 / np.pi / rho_p ) * eta_m * converti_velocita(v)
-    D = m_p * g0.value * ( 1 - rho_m / rho_p )
-    atan = np.arctan( N / D )
-    return p * ( 1 - np.cos(atan) )
+def raggio_sfera_da_massa(massa, densita):
+    return np.cbrt(3 * massa / (4 * np.pi * densita))
 
+def drag_quadratico(massa, densita_piombo, densita_acqua, cd, velocita_ms):
+    r = raggio_sfera_da_massa(massa, densita_piombo)
+    area = np.pi * r**2
+    return 0.5 * densita_acqua * cd * area * velocita_ms**2
 
-profondita = 20            # metri
-massa_piombo = 0.40        # Kg
-densita_piombo = 11340     # Kg / m^3
-densita_mare = MASSA_MARE_IN_BOTTIGLIA / VOLUME_BOTTIGLIA  # Kg / m^3
-viscosita_mare = 1.6e-3    # Kg / m / s  <--- questa stima va migliorata
+def peso_apparente(massa, densita_piombo, densita_acqua):
+    return massa * g0.value * (1 - densita_acqua / densita_piombo)
 
-velocita_traina = 3.5      # nodi -> velocità complessiva misurata col gps: tiene conto anche di eventuale scarroccio
-velocita_corrente = 0      # nodi -> può essere negativa se la corrente è opposta alla direzione di traina
+def sollevamento_piombo(profondita, massa, densita_piombo, densita_acqua, cd, velocita_nodi):
+    v = nodi_a_ms(velocita_nodi)
 
-velocita_totale = velocita_traina + velocita_corrente
+    f_drag = drag_quadratico(
+        massa,
+        densita_piombo,
+        densita_acqua,
+        cd,
+        v
+    )
 
-sollevamento = ottieni_sollevamento( 
-    profondita,
-    massa_piombo,
-    densita_piombo,
-    densita_mare,
-    viscosita_mare,
-    velocita_totale
-) # metri
+    f_verticale = peso_apparente(
+        massa,
+        densita_piombo,
+        densita_acqua
+    )
 
-print(sollevamento)
+    theta = np.arctan(f_drag / f_verticale)
 
+    return profondita * (1 - np.cos(theta)), theta, f_drag, f_verticale
