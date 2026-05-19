@@ -292,7 +292,7 @@ components.html(
             <input id="currentDirection" type="number" min="-180" max="180" step="1" value="0">
         </div>
 
-        <button onclick="loadChanges()">Carica modifiche</button>
+        <button type="button" onclick="loadChanges()">Carica modifiche</button>
 
         <p class="hint">
             Da PC: frecce della tastiera.<br>
@@ -312,13 +312,13 @@ components.html(
         <canvas id="simCanvas" tabindex="0"></canvas>
 
         <div class="touch-controls">
-            <button id="btnSlow">⬇️<br>Rallenta</button>
-            <button id="btnForward">⬆️<br>Accelera</button>
+            <button type="button" id="btnSlow">⬇️<br>Rallenta</button>
+            <button type="button" id="btnForward">⬆️<br>Accelera</button>
 
-            <button id="btnLeft">⬅️<br>Sinistra</button>
-            <button id="btnRight">➡️<br>Destra</button>
+            <button type="button" id="btnLeft">⬅️<br>Sinistra</button>
+            <button type="button" id="btnRight">➡️<br>Destra</button>
 
-            <button id="btnReset" class="wide secondary">🔄 Carica modifiche</button>
+            <button type="button" id="btnReset" class="wide secondary">🔄 Carica modifiche</button>
         </div>
     </div>
 </div>
@@ -360,6 +360,8 @@ const BOAT_TURN_RATE = 1.25;
 const BOAT_SPEED_RESPONSE = 0.85;
 
 const LINE_SEGMENTS_PER_ROD = 100;
+const PRESETTLE_STEPS = 180;
+const PRESETTLE_DT = 1.0 / 60.0;
 
 const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
@@ -376,6 +378,7 @@ let touchControls = {
 let rodsConfig = [];
 let boat = null;
 let lines = [];
+let config = null;
 let lastTime = performance.now();
 
 const colors = [
@@ -506,34 +509,51 @@ function makeRodConfig(name, lateral, angle, length) {
     };
 }
 
+function getNumberInput(id, fallback, minimum = null, maximum = null) {
+    const element = document.getElementById(id);
+
+    if (!element) {
+        return fallback;
+    }
+
+    const parsed = parseFloat(element.value);
+
+    let value = Number.isFinite(parsed) ? parsed : fallback;
+
+    if (minimum !== null) {
+        value = Math.max(minimum, value);
+    }
+
+    if (maximum !== null) {
+        value = Math.min(maximum, value);
+    }
+
+    return value;
+}
+
 function readRodFromPanel(i, fallback) {
     const nameInput = document.getElementById(`rod_${i}_name`);
-    const depthInput = document.getElementById(`rod_${i}_depth`);
-    const diameterInput = document.getElementById(`rod_${i}_diameter`);
-    const massInput = document.getElementById(`rod_${i}_mass`);
-    const lengthInput = document.getElementById(`rod_${i}_length`);
-    const lateralInput = document.getElementById(`rod_${i}_lateral`);
-    const angleInput = document.getElementById(`rod_${i}_angle`);
 
     if (!nameInput) {
         return {...fallback};
     }
 
-    const lateral = clamp(
-        parseFloat(lateralInput.value || fallback.rodBaseLateralM || "0"),
-        -MAX_ROD_BASE_LATERAL_M,
-        MAX_ROD_BASE_LATERAL_M
-    );
-
-    return {
+    const rod = {
         name: nameInput.value || fallback.name || `Canna ${i + 1}`,
-        trollingDepthM: Math.max(0, parseFloat(depthInput.value || fallback.trollingDepthM || "0")),
-        lineLengthM: Math.max(1, parseFloat(lengthInput.value || fallback.lineLengthM || "1")),
-        lineDiameterMm: Math.max(0.01, parseFloat(diameterInput.value || fallback.lineDiameterMm || "0.6")),
-        lureMassG: Math.max(1, parseFloat(massInput.value || fallback.lureMassG || "40")),
-        rodBaseLateralM: lateral,
-        rodAngleDeg: parseFloat(angleInput.value || fallback.rodAngleDeg || "0"),
+        trollingDepthM: getNumberInput(`rod_${i}_depth`, fallback.trollingDepthM, 0.0, null),
+        lineLengthM: getNumberInput(`rod_${i}_length`, fallback.lineLengthM, 1.0, null),
+        lineDiameterMm: getNumberInput(`rod_${i}_diameter`, fallback.lineDiameterMm, 0.01, null),
+        lureMassG: getNumberInput(`rod_${i}_mass`, fallback.lureMassG, 1.0, null),
+        rodBaseLateralM: getNumberInput(
+            `rod_${i}_lateral`,
+            fallback.rodBaseLateralM,
+            -MAX_ROD_BASE_LATERAL_M,
+            MAX_ROD_BASE_LATERAL_M
+        ),
+        rodAngleDeg: getNumberInput(`rod_${i}_angle`, fallback.rodAngleDeg, null, null),
     };
+
+    return rod;
 }
 
 function collectCurrentRodValues() {
@@ -597,6 +617,30 @@ function renderRodsPanel() {
     });
 }
 
+function readGeneralConfig() {
+    return {
+        initialSpeedKnots: getNumberInput(
+            "initialSpeed",
+            DEFAULT_TROLLING_SPEED_KNOTS,
+            MIN_TROLLING_SPEED_KNOTS,
+            MAX_TROLLING_SPEED_KNOTS
+        ),
+        currentSpeedKnots: getNumberInput("currentSpeed", 0.0, 0.0, null),
+        currentDirectionDeg: normalizeAngleDeg(getNumberInput("currentDirection", 0.0, null, null)),
+    };
+}
+
+function buildAppConfig(rods) {
+    const general = readGeneralConfig();
+
+    return {
+        rods: rods,
+        initialSpeedKnots: general.initialSpeedKnots,
+        currentSpeedKnots: general.currentSpeedKnots,
+        currentDirectionDeg: general.currentDirectionDeg,
+    };
+}
+
 function initialiseRods() {
     const n = clamp(parseInt(document.getElementById("numRods").value || "4"), 1, 8);
     document.getElementById("numRods").value = n;
@@ -606,7 +650,7 @@ function initialiseRods() {
     );
 
     renderRodsPanel();
-    resetSimulationFromCurrentPanel();
+    resetSimulationWithConfig(buildAppConfig(rodsConfig), false);
 }
 
 function loadChanges() {
@@ -614,54 +658,28 @@ function loadChanges() {
     document.getElementById("numRods").value = requestedN;
 
     const currentValues = collectCurrentRodValues();
+    const layout = defaultRodLayout(requestedN);
+    const newRods = [];
 
-    if (requestedN !== currentValues.length) {
-        const layout = defaultRodLayout(requestedN);
-        const newRods = [];
-
-        for (let i = 0; i < requestedN; i++) {
-            if (i < currentValues.length) {
-                newRods.push(currentValues[i]);
-            } else {
-                newRods.push(makeRodConfig(layout[i][0], layout[i][1], layout[i][2], layout[i][3]));
-            }
+    for (let i = 0; i < requestedN; i++) {
+        if (i < currentValues.length) {
+            newRods.push(currentValues[i]);
+        } else {
+            newRods.push(makeRodConfig(layout[i][0], layout[i][1], layout[i][2], layout[i][3]));
         }
-
-        rodsConfig = newRods;
-        renderRodsPanel();
-    } else {
-        rodsConfig = currentValues;
-        renderRodsPanel();
     }
 
-    resetSimulationFromCurrentPanel();
+    rodsConfig = newRods;
+
+    const newConfig = buildAppConfig(rodsConfig);
+
+    renderRodsPanel();
+    resetSimulationWithConfig(newConfig, true);
 }
 
-function readConfigFromPanel() {
-    rodsConfig = collectCurrentRodValues();
-
-    rodsConfig.forEach((rod, i) => {
-        const lateralInput = document.getElementById(`rod_${i}_lateral`);
-        if (lateralInput) {
-            lateralInput.value = rod.rodBaseLateralM;
-        }
-    });
-
-    return {
-        rods: rodsConfig,
-        initialSpeedKnots: clamp(
-            parseFloat(document.getElementById("initialSpeed").value || DEFAULT_TROLLING_SPEED_KNOTS),
-            MIN_TROLLING_SPEED_KNOTS,
-            MAX_TROLLING_SPEED_KNOTS
-        ),
-        currentSpeedKnots: Math.max(0, parseFloat(document.getElementById("currentSpeed").value || "0")),
-        currentDirectionDeg: normalizeAngleDeg(parseFloat(document.getElementById("currentDirection").value || "0")),
-    };
-}
-
-function currentVector(config) {
-    const speedMs = config.currentSpeedKnots * KNOT_TO_MS;
-    const angleRad = config.currentDirectionDeg * Math.PI / 180.0;
+function currentVector(appConfig) {
+    const speedMs = appConfig.currentSpeedKnots * KNOT_TO_MS;
+    const angleRad = appConfig.currentDirectionDeg * Math.PI / 180.0;
 
     return {
         x: Math.cos(angleRad) * speedMs,
@@ -897,10 +915,8 @@ class Line {
     }
 }
 
-let config = null;
-
-function resetSimulationFromCurrentPanel() {
-    config = readConfigFromPanel();
+function resetSimulationWithConfig(appConfig, doPresettle) {
+    config = appConfig;
     boat = new Boat(config.initialSpeedKnots);
 
     lines = config.rods.map(
@@ -912,8 +928,31 @@ function resetSimulationFromCurrentPanel() {
         )
     );
 
+    if (doPresettle) {
+        presettleSimulation();
+    }
+
+    lastTime = performance.now();
     resizeCanvas();
     canvas.focus();
+}
+
+function presettleSimulation() {
+    const curr = currentVector(config);
+
+    for (let step = 0; step < PRESETTLE_STEPS; step++) {
+        boat.update(PRESETTLE_DT);
+
+        lines.forEach(line => {
+            line.update(
+                PRESETTLE_DT,
+                boat.position,
+                boat.heading(),
+                boat.velocity,
+                curr
+            );
+        });
+    }
 }
 
 function getSceneBounds() {
@@ -1340,6 +1379,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=1030,
+    height=1100,
     scrolling=False,
 )
