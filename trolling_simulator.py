@@ -1,3 +1,11 @@
+# Copyright (c) 2026 Federico Incardona
+# All rights reserved.
+#
+# This software and its source code are protected by copyright.
+# Unauthorized copying, modification, distribution, or commercial use
+# is not permitted without prior written permission.
+
+
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -114,7 +122,7 @@ components.html(
 
     .touch-controls {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr;
         gap: 10px;
         background: #12384f;
         border-radius: 12px;
@@ -128,15 +136,11 @@ components.html(
     }
 
     .touch-controls .wide {
-        grid-column: span 3;
+        grid-column: span 2;
     }
 
     .touch-controls .secondary {
         background: #d7e2ea;
-    }
-
-    .touch-controls .danger {
-        background: #ff9a83;
     }
 
     .touch-controls .active {
@@ -232,6 +236,7 @@ components.html(
         <p class="hint">
             Da PC: frecce della tastiera.  
             Da smartphone: usa i pulsanti sotto la simulazione.
+            La posizione laterale della base canna è limitata tra -5 m e +5 m.
         </p>
 
         <h3>Canne</h3>
@@ -244,10 +249,8 @@ components.html(
         <div class="touch-controls">
             <button id="btnSlow">➖<br>Rallenta</button>
             <button id="btnForward">⬆️<br>Accelera</button>
-            <button id="btnPause" class="secondary">⏸️<br>Pausa</button>
 
             <button id="btnLeft">⬅️<br>Sinistra</button>
-            <button id="btnStop" class="danger">⏹️<br>Stop</button>
             <button id="btnRight">➡️<br>Destra</button>
 
             <button id="btnReset" class="wide secondary">🔄 Reset simulazione</button>
@@ -275,6 +278,8 @@ const BOAT_WIDTH_M = 2.0;
 const BOAT_LENGTH_M = 6.0;
 const ROD_LENGTH_M = 1.80;
 
+const MAX_ROD_BASE_LATERAL_M = 5.0;
+
 const DRAG_COEFF_LINE = 1.1;
 const DRAG_COEFF_LURE = 0.9;
 const LURE_REFERENCE_AREA = 0.0025;
@@ -293,6 +298,7 @@ const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
 
 let keys = {};
+
 let touchControls = {
     up: false,
     down: false,
@@ -300,7 +306,6 @@ let touchControls = {
     right: false,
 };
 
-let paused = false;
 let rodsConfig = [];
 let boat = null;
 let lines = [];
@@ -459,7 +464,7 @@ function renderRodsPanel() {
 
             <div class="row">
                 <label>Base laterale m</label>
-                <input id="rod_${i}_lateral" type="number" step="0.1" value="${rod.rodBaseLateralM}">
+                <input id="rod_${i}_lateral" type="number" min="-5" max="5" step="0.1" value="${rod.rodBaseLateralM}">
             </div>
 
             <div class="row">
@@ -479,7 +484,15 @@ function readConfigFromPanel() {
         rod.lineLengthM = Math.max(1, parseFloat(document.getElementById(`rod_${i}_length`).value || "1"));
         rod.lineDiameterMm = Math.max(0.01, parseFloat(document.getElementById(`rod_${i}_diameter`).value || "0.6"));
         rod.lureMassG = Math.max(1, parseFloat(document.getElementById(`rod_${i}_mass`).value || "40"));
-        rod.rodBaseLateralM = clamp(parseFloat(document.getElementById(`rod_${i}_lateral`).value || "0"), -BOAT_WIDTH_M / 2, BOAT_WIDTH_M / 2);
+
+        rod.rodBaseLateralM = clamp(
+            parseFloat(document.getElementById(`rod_${i}_lateral`).value || "0"),
+            -MAX_ROD_BASE_LATERAL_M,
+            MAX_ROD_BASE_LATERAL_M
+        );
+
+        document.getElementById(`rod_${i}_lateral`).value = rod.rodBaseLateralM;
+
         rod.rodAngleDeg = parseFloat(document.getElementById(`rod_${i}_angle`).value || "0");
     });
 
@@ -523,6 +536,7 @@ class Boat {
 
     right() {
         const h = this.heading();
+
         return {
             x: -h.y,
             y: h.x,
@@ -562,11 +576,6 @@ class Boat {
         );
 
         this.position = add(this.position, mul(this.velocity, dt));
-    }
-
-    stop() {
-        this.targetSpeedKnots = 0;
-        this.targetSpeedMs = 0;
     }
 }
 
@@ -734,8 +743,6 @@ function resetSimulation() {
     config = readConfigFromPanel();
     boat = new Boat(config.initialSpeedKnots);
     lines = config.rods.map(rod => new Line(rod, boat.position));
-    paused = false;
-    updatePauseButton();
     canvas.focus();
 }
 
@@ -933,7 +940,7 @@ function drawHud() {
         `Velocità reale:  ${realSpeedKnots.toFixed(2)} nodi`,
         `Rotta barca:    ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
         `Corrente:       ${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
-        paused ? `SIMULAZIONE IN PAUSA` : `PC: frecce | Smartphone: pulsanti sotto`,
+        `PC: frecce | Smartphone: pulsanti sotto`,
     ];
 
     ctx.font = "18px Consolas, monospace";
@@ -947,19 +954,6 @@ function drawHud() {
     }
 }
 
-function drawPausedOverlay() {
-    if (!paused) return;
-
-    ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-    ctx.font = "bold 52px Arial";
-    ctx.fillStyle = "white";
-    ctx.textAlign = "center";
-    ctx.fillText("PAUSA", WIDTH / 2, HEIGHT / 2);
-    ctx.textAlign = "left";
-}
-
 function animate(now) {
     let dt = (now - lastTime) / 1000.0;
     lastTime = now;
@@ -967,21 +961,19 @@ function animate(now) {
     dt = Math.min(dt, 0.03);
 
     if (boat && config) {
-        if (!paused) {
-            boat.update(dt);
+        boat.update(dt);
 
-            const curr = currentVector(config);
+        const curr = currentVector(config);
 
-            lines.forEach(line => {
-                line.update(
-                    dt,
-                    boat.position,
-                    boat.heading(),
-                    boat.velocity,
-                    curr
-                );
-            });
-        }
+        lines.forEach(line => {
+            line.update(
+                dt,
+                boat.position,
+                boat.heading(),
+                boat.velocity,
+                curr
+            );
+        });
 
         const camera = boat.position;
 
@@ -997,7 +989,6 @@ function animate(now) {
         drawBoat(camera);
         drawRods(camera);
         drawHud();
-        drawPausedOverlay();
     }
 
     requestAnimationFrame(animate);
@@ -1033,39 +1024,10 @@ function bindHoldButton(buttonId, controlName) {
     button.addEventListener("pointerleave", end);
 }
 
-function updatePauseButton() {
-    const btn = document.getElementById("btnPause");
-
-    if (paused) {
-        btn.innerHTML = "▶️<br>Riprendi";
-    } else {
-        btn.innerHTML = "⏸️<br>Pausa";
-    }
-}
-
-function togglePause() {
-    paused = !paused;
-    updatePauseButton();
-}
-
-function stopBoat() {
-    if (boat) {
-        boat.stop();
-    }
-}
-
 bindHoldButton("btnForward", "up");
 bindHoldButton("btnSlow", "down");
 bindHoldButton("btnLeft", "left");
 bindHoldButton("btnRight", "right");
-
-document.getElementById("btnPause").addEventListener("click", () => {
-    togglePause();
-});
-
-document.getElementById("btnStop").addEventListener("click", () => {
-    stopBoat();
-});
 
 document.getElementById("btnReset").addEventListener("click", () => {
     resetSimulation();
@@ -1080,11 +1042,6 @@ window.addEventListener("keydown", event => {
         event.key === "ArrowLeft" ||
         event.key === "ArrowRight"
     ) {
-        event.preventDefault();
-    }
-
-    if (event.key === " ") {
-        togglePause();
         event.preventDefault();
     }
 });

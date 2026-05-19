@@ -1,0 +1,20 @@
+Copyright (c) 2026 Federico Incardona
+
+All rights reserved.
+
+This software, including its source code, user interface, graphics,
+simulation logic, documentation, and related materials, is the property
+of Federico Incardona.
+
+You may access and use the deployed web application for personal,
+non-commercial purposes only.
+
+You may not copy, modify, redistribute, sublicense, sell, publish,
+host, reverse engineer, or create derivative works from this software
+or any substantial part of it without prior written permission from
+Federico Incardona.
+
+No warranty is provided. The software is provided "as is", without
+any express or implied warranties, including but not limited to
+fitness for a particular purpose, accuracy of simulation results, or
+availability of the service.
