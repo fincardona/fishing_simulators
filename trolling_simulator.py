@@ -180,33 +180,39 @@ components.html(
         .container {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            height: 830px;
+            gap: 6px;
+            height: 770px;
             padding: 6px;
         }
 
         .panel {
-            height: 300px;
-            flex: 0 0 300px;
+            height: 280px;
+            flex: 0 0 280px;
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
         }
 
         .sim-area {
-            height: 505px;
-            flex: 0 0 505px;
+            height: 465px;
+            flex: 0 0 465px;
             padding: 4px;
+            gap: 6px;
         }
 
         canvas {
-            height: 380px;
-            flex: 0 0 380px;
+            height: 345px;
+            flex: 0 0 345px;
+        }
+
+        .touch-controls {
+            gap: 6px;
+            padding: 7px;
         }
 
         .touch-controls button {
-            min-height: 44px;
-            font-size: 16px;
+            min-height: 39px;
+            font-size: 15px;
         }
     }
 
@@ -216,25 +222,26 @@ components.html(
         }
 
         .container {
-            gap: 8px;
-            height: 810px;
+            gap: 6px;
+            height: 750px;
             padding: 6px;
         }
 
         .panel {
-            height: 300px;
-            flex: 0 0 300px;
+            height: 275px;
+            flex: 0 0 275px;
             padding: 10px;
         }
 
         .sim-area {
-            height: 485px;
-            flex: 0 0 485px;
+            height: 450px;
+            flex: 0 0 450px;
+            gap: 6px;
         }
 
         canvas {
-            height: 365px;
-            flex: 0 0 365px;
+            height: 335px;
+            flex: 0 0 335px;
         }
 
         .row {
@@ -243,13 +250,13 @@ components.html(
         }
 
         .touch-controls {
-            gap: 7px;
-            padding: 8px;
+            gap: 6px;
+            padding: 7px;
         }
 
         .touch-controls button {
-            min-height: 40px;
-            font-size: 15px;
+            min-height: 38px;
+            font-size: 14px;
         }
     }
 </style>
