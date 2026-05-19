@@ -180,39 +180,39 @@ components.html(
         .container {
             display: flex;
             flex-direction: column;
-            gap: 5px;
-            height: 710px;
-            padding: 5px;
+            gap: 6px;
+            height: 790px;
+            padding: 6px;
         }
 
         .panel {
-            height: 255px;
-            flex: 0 0 255px;
+            height: 285px;
+            flex: 0 0 285px;
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
         }
 
         .sim-area {
-            height: 435px;
-            flex: 0 0 435px;
-            padding: 3px;
-            gap: 5px;
+            height: 487px;
+            flex: 0 0 487px;
+            padding: 4px;
+            gap: 6px;
         }
 
         canvas {
-            height: 320px;
-            flex: 0 0 320px;
+            height: 370px;
+            flex: 0 0 370px;
         }
 
         .touch-controls {
-            gap: 5px;
-            padding: 6px;
+            gap: 6px;
+            padding: 7px;
         }
 
         .touch-controls button {
-            min-height: 36px;
-            font-size: 14px;
+            min-height: 39px;
+            font-size: 15px;
         }
     }
 
@@ -222,26 +222,26 @@ components.html(
         }
 
         .container {
-            gap: 5px;
-            height: 690px;
-            padding: 5px;
+            gap: 6px;
+            height: 790px;
+            padding: 6px;
         }
 
         .panel {
-            height: 245px;
-            flex: 0 0 245px;
-            padding: 9px;
+            height: 285px;
+            flex: 0 0 285px;
+            padding: 10px;
         }
 
         .sim-area {
-            height: 425px;
-            flex: 0 0 425px;
-            gap: 5px;
+            height: 487px;
+            flex: 0 0 487px;
+            gap: 6px;
         }
 
         canvas {
-            height: 315px;
-            flex: 0 0 315px;
+            height: 370px;
+            flex: 0 0 370px;
         }
 
         .row {
@@ -250,13 +250,13 @@ components.html(
         }
 
         .touch-controls {
-            gap: 5px;
-            padding: 6px;
+            gap: 6px;
+            padding: 7px;
         }
 
         .touch-controls button {
-            min-height: 35px;
-            font-size: 13px;
+            min-height: 38px;
+            font-size: 14px;
         }
     }
 </style>
