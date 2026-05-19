@@ -21,7 +21,7 @@ st.write(
     """
     Versione web del simulatore: funziona da PC e da smartphone.
     Da PC puoi usare le frecce della tastiera.  
-    Da smartphone usa i pulsanti a schermo.
+    Da smartphone usa i pulsanti sotto la simulazione.
     """
 )
 
@@ -186,22 +186,14 @@ components.html(
             overflow-y: visible;
         }
 
-        .sim-area {
-            flex-direction: column;
-        }
-
-        .touch-controls {
-            order: -1;
-        }
-
         canvas {
-            height: 52vh;
-            min-height: 330px;
+            height: 58vh;
+            min-height: 380px;
         }
 
         .touch-controls button {
-            min-height: 58px;
-            font-size: 20px;
+            min-height: 54px;
+            font-size: 18px;
         }
     }
 
@@ -224,8 +216,8 @@ components.html(
         }
 
         canvas {
-            height: 46vh;
-            min-height: 300px;
+            height: 54vh;
+            min-height: 360px;
         }
 
         .touch-controls {
@@ -234,8 +226,8 @@ components.html(
         }
 
         .touch-controls button {
-            min-height: 54px;
-            font-size: 18px;
+            min-height: 46px;
+            font-size: 16px;
         }
     }
 </style>
@@ -271,7 +263,7 @@ components.html(
 
         <p class="hint">
             Da PC: frecce della tastiera.<br>
-            Da smartphone: usa i pulsanti a schermo.<br>
+            Da smartphone: usa i pulsanti sotto la simulazione.<br>
             La posizione laterale della base canna è limitata tra -5 m e +5 m.
         </p>
 
@@ -284,8 +276,10 @@ components.html(
     </div>
 
     <div class="sim-area">
+        <canvas id="simCanvas" tabindex="0"></canvas>
+
         <div class="touch-controls">
-            <button id="btnSlow">➖<br>Rallenta</button>
+            <button id="btnSlow">⬇️<br>Rallenta</button>
             <button id="btnForward">⬆️<br>Accelera</button>
 
             <button id="btnLeft">⬅️<br>Sinistra</button>
@@ -293,8 +287,6 @@ components.html(
 
             <button id="btnReset" class="wide secondary">🔄 Reset simulazione</button>
         </div>
-
-        <canvas id="simCanvas" tabindex="0"></canvas>
     </div>
 </div>
 
@@ -363,39 +355,6 @@ const colors = [
     "#a0dcdc",
 ];
 
-function updateWorldScale() {
-    if (WIDTH < 430) {
-        PIXELS_PER_METER = 9.0;
-    } else if (WIDTH < 700) {
-        PIXELS_PER_METER = 7.0;
-    } else {
-        PIXELS_PER_METER = 4.0;
-    }
-}
-
-function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
-
-    DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1;
-
-    WIDTH = Math.max(320, Math.floor(rect.width));
-    HEIGHT = Math.max(300, Math.floor(rect.height));
-
-    updateWorldScale();
-
-    canvas.width = Math.floor(WIDTH * DEVICE_PIXEL_RATIO);
-    canvas.height = Math.floor(HEIGHT * DEVICE_PIXEL_RATIO);
-
-    ctx.setTransform(
-        DEVICE_PIXEL_RATIO,
-        0,
-        0,
-        DEVICE_PIXEL_RATIO,
-        0,
-        0
-    );
-}
-
 function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, value));
 }
@@ -436,6 +395,27 @@ function limitVector(a, maxLen) {
         return mul(a, maxLen / l);
     }
     return a;
+}
+
+function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+
+    DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1;
+
+    WIDTH = Math.max(320, Math.floor(rect.width));
+    HEIGHT = Math.max(300, Math.floor(rect.height));
+
+    canvas.width = Math.floor(WIDTH * DEVICE_PIXEL_RATIO);
+    canvas.height = Math.floor(HEIGHT * DEVICE_PIXEL_RATIO);
+
+    ctx.setTransform(
+        DEVICE_PIXEL_RATIO,
+        0,
+        0,
+        DEVICE_PIXEL_RATIO,
+        0,
+        0
+    );
 }
 
 function defaultRodLayout(n) {
@@ -820,6 +800,91 @@ function resetSimulation() {
     canvas.focus();
 }
 
+function getSceneBounds() {
+    if (!boat || lines.length === 0) {
+        return {
+            minX: -10,
+            maxX: 10,
+            minY: -10,
+            maxY: 10,
+        };
+    }
+
+    let minX = boat.position.x;
+    let maxX = boat.position.x;
+    let minY = boat.position.y;
+    let maxY = boat.position.y;
+
+    const heading = boat.heading();
+    const right = boat.right();
+
+    const boatPoints = [
+        add(boat.position, mul(heading, BOAT_LENGTH_M)),
+        sub(boat.position, mul(heading, BOAT_LENGTH_M)),
+        add(boat.position, mul(right, BOAT_WIDTH_M)),
+        sub(boat.position, mul(right, BOAT_WIDTH_M)),
+    ];
+
+    boatPoints.forEach(p => {
+        minX = Math.min(minX, p.x);
+        maxX = Math.max(maxX, p.x);
+        minY = Math.min(minY, p.y);
+        maxY = Math.max(maxY, p.y);
+    });
+
+    lines.forEach(line => {
+        line.points.forEach(p => {
+            minX = Math.min(minX, p.x);
+            maxX = Math.max(maxX, p.x);
+            minY = Math.min(minY, p.y);
+            maxY = Math.max(maxY, p.y);
+        });
+    });
+
+    const marginM = 6.0;
+
+    return {
+        minX: minX - marginM,
+        maxX: maxX + marginM,
+        minY: minY - marginM,
+        maxY: maxY + marginM,
+    };
+}
+
+function updateWorldScaleFromScene() {
+    if (!boat || lines.length === 0 || WIDTH >= 700) {
+        PIXELS_PER_METER = 4.0;
+        return;
+    }
+
+    const bounds = getSceneBounds();
+
+    const sceneWidthM = Math.max(10, bounds.maxX - bounds.minX);
+    const sceneHeightM = Math.max(10, bounds.maxY - bounds.minY);
+
+    const scaleX = WIDTH * 0.92 / sceneWidthM;
+    const scaleY = HEIGHT * 0.78 / sceneHeightM;
+
+    PIXELS_PER_METER = clamp(
+        Math.min(scaleX, scaleY),
+        2.8,
+        7.0
+    );
+}
+
+function getSmartCamera() {
+    if (!boat || lines.length === 0 || WIDTH >= 700) {
+        return boat ? boat.position : vec(0, 0);
+    }
+
+    const bounds = getSceneBounds();
+
+    const centerX = (bounds.minX + bounds.maxX) / 2;
+    const centerY = (bounds.minY + bounds.maxY) / 2;
+
+    return vec(centerX, centerY);
+}
+
 function worldToScreen(point, camera) {
     const x = WIDTH / 2 + (point.x - camera.x) * PIXELS_PER_METER;
     const y = HEIGHT / 2 + (point.y - camera.y) * PIXELS_PER_METER;
@@ -1023,7 +1088,7 @@ function drawHud() {
             `Velocità reale:  ${realSpeedKnots.toFixed(2)} nodi`,
             `Rotta barca:    ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
             `Corrente:       ${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
-            `PC: frecce | Smartphone: pulsanti a schermo`,
+            `PC: frecce | Smartphone: pulsanti sotto`,
         ];
 
     ctx.font = smallScreen ? "14px Consolas, monospace" : "18px Consolas, monospace";
@@ -1059,7 +1124,9 @@ function animate(now) {
             );
         });
 
-        const camera = boat.position;
+        updateWorldScaleFromScene();
+
+        const camera = getSmartCamera();
 
         ctx.fillStyle = "#14466a";
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -1153,6 +1220,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=1150,
+    height=1250,
     scrolling=True,
 )
