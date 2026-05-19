@@ -10,12 +10,12 @@ import streamlit.components.v1 as components
 
 
 st.set_page_config(
-    page_title="Simulatore lenze da traina",
+    page_title="Simulatore assetti da traina",
     page_icon="🎣",
     layout="wide",
 )
 
-st.title("🎣 Simulatore lenze da traina")
+st.title("🎣 Simulatore assetti da traina")
 
 st.write(
     """
@@ -36,20 +36,14 @@ components.html(
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-    html {
+    html, body {
         margin: 0;
         padding: 0;
         width: 100%;
         overflow: hidden;
-    }
-
-    body {
-        margin: 0;
-        padding: 0;
         font-family: Arial, sans-serif;
         background: #0f3d5a;
         color: white;
-        overflow: hidden;
     }
 
     .container {
@@ -82,7 +76,7 @@ components.html(
         font-size: 14px;
     }
 
-    input, select, button {
+    input, button {
         border-radius: 7px;
         border: none;
         padding: 6px;
@@ -180,11 +174,6 @@ components.html(
             display: flex;
             flex-direction: column;
             gap: 10px;
-        }
-
-        .panel {
-            overflow: visible;
-            max-height: none;
         }
 
         canvas {
@@ -295,7 +284,6 @@ components.html(
 let WIDTH = 1200;
 let HEIGHT = 700;
 let DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1;
-
 let PIXELS_PER_METER = 4.0;
 
 const KNOT_TO_MS = 0.514444;
@@ -355,19 +343,6 @@ const colors = [
     "#ffb450",
     "#a0dcdc",
 ];
-
-function resizeStreamlitFrame() {
-    const height = Math.ceil(document.documentElement.scrollHeight);
-
-    window.parent.postMessage(
-        {
-            isStreamlitMessage: true,
-            type: "streamlit:setFrameHeight",
-            height: height
-        },
-        "*"
-    );
-}
 
 function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, value));
@@ -492,7 +467,6 @@ function rebuildRods() {
 
     renderRodsPanel();
     resetSimulation();
-    setTimeout(resizeStreamlitFrame, 50);
 }
 
 function renderRodsPanel() {
@@ -813,7 +787,6 @@ function resetSimulation() {
     boat = new Boat(config.initialSpeedKnots);
     lines = config.rods.map(rod => new Line(rod, boat.position));
     canvas.focus();
-    setTimeout(resizeStreamlitFrame, 50);
 }
 
 function getSceneBounds() {
@@ -1225,20 +1198,8 @@ canvas.addEventListener("touchstart", () => {
     canvas.focus();
 }, {passive: true});
 
-const frameResizeObserver = new ResizeObserver(() => {
-    resizeStreamlitFrame();
-});
-
-frameResizeObserver.observe(document.body);
-
-window.addEventListener("load", () => {
-    resizeCanvas();
-    resizeStreamlitFrame();
-});
-
 window.addEventListener("resize", () => {
     resizeCanvas();
-    resizeStreamlitFrame();
 });
 
 resizeCanvas();
@@ -1248,6 +1209,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=100,
+    height=2600,
     scrolling=False,
 )
