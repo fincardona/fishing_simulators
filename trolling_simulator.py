@@ -1400,6 +1400,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=850,
+    height=800,
     scrolling=False,
 )
