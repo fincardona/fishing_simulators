@@ -10,12 +10,12 @@ import streamlit.components.v1 as components
 
 
 st.set_page_config(
-    page_title="Simulatore assetti da traina",
+    page_title="Simulatore assetto da traina",
     page_icon="🎣",
     layout="wide",
 )
 
-st.title("🎣 Simulatore assetti da traina")
+st.title("🎣 Simulatore assetto da traina")
 
 st.write(
     """
@@ -40,6 +40,7 @@ components.html(
         margin: 0;
         padding: 0;
         width: 100%;
+        height: 100%;
         overflow: hidden;
         font-family: Arial, sans-serif;
         background: #0f3d5a;
@@ -51,6 +52,7 @@ components.html(
         grid-template-columns: 340px minmax(0, 1fr);
         gap: 14px;
         width: 100%;
+        height: 820px;
         box-sizing: border-box;
     }
 
@@ -59,8 +61,10 @@ components.html(
         border-radius: 12px;
         padding: 14px;
         box-sizing: border-box;
-        overflow: visible;
-        max-height: none;
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
     }
 
     .panel h3 {
@@ -116,14 +120,16 @@ components.html(
         flex-direction: column;
         gap: 10px;
         min-width: 0;
+        height: 100%;
+        overflow: hidden;
     }
 
     canvas {
         background: #154f73;
         border-radius: 12px;
         width: 100%;
-        height: min(58vh, 610px);
-        min-height: 330px;
+        flex: 1 1 auto;
+        min-height: 0;
         display: block;
         touch-action: pan-y;
     }
@@ -136,6 +142,7 @@ components.html(
         border-radius: 12px;
         padding: 10px;
         box-sizing: border-box;
+        flex: 0 0 auto;
     }
 
     .touch-controls button {
@@ -170,19 +177,31 @@ components.html(
     }
 
     @media (max-width: 900px) {
+        html, body {
+            overflow: hidden;
+        }
+
         .container {
             display: flex;
             flex-direction: column;
             gap: 10px;
+            height: 900px;
         }
 
-        canvas {
-            height: 48vh;
-            min-height: 320px;
+        .panel {
+            height: 340px;
+            flex: 0 0 340px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sim-area {
+            height: 520px;
+            flex: 0 0 520px;
         }
 
         .touch-controls button {
-            min-height: 50px;
+            min-height: 48px;
             font-size: 17px;
         }
     }
@@ -194,20 +213,23 @@ components.html(
 
         .container {
             gap: 8px;
+            height: 850px;
         }
 
         .panel {
+            height: 320px;
+            flex: 0 0 320px;
             padding: 10px;
+        }
+
+        .sim-area {
+            height: 500px;
+            flex: 0 0 500px;
         }
 
         .row {
             grid-template-columns: minmax(0, 1fr) 90px;
             font-size: 13px;
-        }
-
-        canvas {
-            height: 44vh;
-            min-height: 300px;
         }
 
         .touch-controls {
@@ -392,7 +414,7 @@ function resizeCanvas() {
     DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1;
 
     WIDTH = Math.max(320, Math.floor(rect.width));
-    HEIGHT = Math.max(280, Math.floor(rect.height));
+    HEIGHT = Math.max(250, Math.floor(rect.height));
 
     canvas.width = Math.floor(WIDTH * DEVICE_PIXEL_RATIO);
     canvas.height = Math.floor(HEIGHT * DEVICE_PIXEL_RATIO);
@@ -1209,6 +1231,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=2600,
+    height=900,
     scrolling=False,
 )
