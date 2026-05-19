@@ -52,7 +52,7 @@ components.html(
         grid-template-columns: 340px minmax(0, 1fr);
         gap: 14px;
         width: 100%;
-        height: 780px;
+        height: 800px;
         box-sizing: border-box;
         padding: 6px;
     }
@@ -298,8 +298,7 @@ components.html(
         <p class="hint">
             Da PC: frecce della tastiera.<br>
             Da smartphone: usa i pulsanti sotto la simulazione.<br>
-            La posizione laterale della base canna è limitata tra -5 m e +5 m.<br>
-            Ogni lenza è divisa sempre in 100 segmenti.
+            La posizione laterale della base canna è limitata tra -5 m e +5 m.
         </p>
 
         <h3>Canne</h3>
@@ -362,6 +361,8 @@ const BOAT_TURN_RATE = 1.25;
 const BOAT_SPEED_RESPONSE = 0.85;
 
 const LINE_SEGMENTS_PER_ROD = 100;
+const DEPLOY_DELAY_SECONDS = 1.0;
+const DEPLOY_DURATION_SECONDS = 1.4;
 
 const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
@@ -379,6 +380,7 @@ let rodsConfig = [];
 let boat = null;
 let lines = [];
 let lastTime = performance.now();
+let simulationElapsed = 0.0;
 
 const colors = [
     "#ffdc78",
@@ -670,8 +672,10 @@ class Boat {
 }
 
 class Line {
-    constructor(config, boatPosition) {
+    constructor(config, boatPosition, deploymentOrder) {
         this.config = config;
+        this.deploymentOrder = deploymentOrder;
+        this.deployStartTime = deploymentOrder * DEPLOY_DELAY_SECONDS;
 
         this.numSegments = LINE_SEGMENTS_PER_ROD;
         this.restLength = config.lineLengthM / this.numSegments;
@@ -687,13 +691,28 @@ class Line {
 
         for (let i = 0; i <= this.numSegments; i++) {
             const p = vec(
-                initialAnchor.x - i * this.restLength,
+                initialAnchor.x,
                 initialAnchor.y
             );
 
             this.points.push(p);
             this.velocities.push(vec(0, 0));
         }
+    }
+
+    deployedSegments(elapsedSeconds) {
+        const t = elapsedSeconds - this.deployStartTime;
+
+        if (t <= 0) {
+            return 0;
+        }
+
+        const progress = clamp(t / DEPLOY_DURATION_SECONDS, 0.0, 1.0);
+
+        return Math.max(
+            1,
+            Math.floor(progress * this.numSegments)
+        );
     }
 
     rodBasePoint(boatPosition, boatHeading) {
@@ -727,16 +746,25 @@ class Line {
         return add(base, mul(rodDirection, ROD_LENGTH_M));
     }
 
-    update(dt, boatPosition, boatHeading, boatVelocity, currentVec) {
+    update(dt, boatPosition, boatHeading, boatVelocity, currentVec, elapsedSeconds) {
         const anchor = this.rodTipPoint(boatPosition, boatHeading);
+        const deployedCount = this.deployedSegments(elapsedSeconds);
 
         this.points[0] = {...anchor};
         this.velocities[0] = {...boatVelocity};
 
+        if (deployedCount <= 0) {
+            for (let i = 1; i < this.points.length; i++) {
+                this.points[i] = {...anchor};
+                this.velocities[i] = vec(0, 0);
+            }
+            return;
+        }
+
         const diameterM = this.config.lineDiameterMm / 1000.0;
         const segmentLength = this.restLength;
 
-        for (let i = 1; i < this.points.length; i++) {
+        for (let i = 1; i <= deployedCount; i++) {
             let point = this.points[i];
             let velocity = this.velocities[i];
 
@@ -760,7 +788,7 @@ class Line {
                 force = add(force, mul(normalize(relativeVelocity), -dragLine));
             }
 
-            if (i === this.points.length - 1 && speed > 1e-6) {
+            if (i === deployedCount && speed > 1e-6) {
                 let dragLure =
                     0.5 *
                     WATER_DENSITY *
@@ -777,7 +805,7 @@ class Line {
 
             let effectiveMass;
 
-            if (i === this.points.length - 1) {
+            if (i === deployedCount) {
                 const lureMassKg = this.config.lureMassG / 1000.0;
                 effectiveMass = LINE_POINT_MASS * depthFactor + lureMassKg;
             } else {
@@ -804,7 +832,7 @@ class Line {
         for (let iter = 0; iter < 8; iter++) {
             this.points[0] = {...anchor};
 
-            for (let i = 0; i < this.points.length - 1; i++) {
+            for (let i = 0; i < deployedCount; i++) {
                 const p1 = this.points[i];
                 const p2 = this.points[i + 1];
 
@@ -827,8 +855,13 @@ class Line {
             }
         }
 
-        for (let i = 1; i < this.points.length; i++) {
+        for (let i = 1; i <= deployedCount; i++) {
             this.velocities[i] = limitVector(this.velocities[i], MAX_POINT_SPEED);
+        }
+
+        for (let i = deployedCount + 1; i < this.points.length; i++) {
+            this.points[i] = {...this.points[deployedCount]};
+            this.velocities[i] = vec(0, 0);
         }
     }
 }
@@ -838,7 +871,16 @@ let config = null;
 function resetSimulation() {
     config = readConfigFromPanel();
     boat = new Boat(config.initialSpeedKnots);
-    lines = config.rods.map(rod => new Line(rod, boat.position));
+
+    const rodsByLength = [...config.rods].sort(
+        (a, b) => b.lineLengthM - a.lineLengthM
+    );
+
+    lines = rodsByLength.map(
+        (rod, index) => new Line(rod, boat.position, index)
+    );
+
+    simulationElapsed = 0.0;
     canvas.focus();
 }
 
@@ -875,12 +917,16 @@ function getSceneBounds() {
     });
 
     lines.forEach(line => {
-        line.points.forEach(p => {
+        const deployedCount = line.deployedSegments(simulationElapsed);
+
+        for (let i = 0; i <= deployedCount; i++) {
+            const p = line.points[i];
+
             minX = Math.min(minX, p.x);
             maxX = Math.max(maxX, p.x);
             minY = Math.min(minY, p.y);
             maxY = Math.max(maxY, p.y);
-        });
+        }
     });
 
     const marginM = 6.0;
@@ -1080,8 +1126,13 @@ function drawRods(camera) {
 
 function drawLine(line, camera, color) {
     const screenPoints = [];
+    const deployedCount = line.deployedSegments(simulationElapsed);
 
-    for (let i = 0; i < line.points.length; i++) {
+    if (deployedCount <= 0) {
+        return;
+    }
+
+    for (let i = 0; i <= deployedCount; i++) {
         const p = worldToScreen(line.points[i], camera);
         if (p !== null) {
             screenPoints.push(p);
@@ -1154,6 +1205,7 @@ function animate(now) {
     lastTime = now;
 
     dt = Math.min(dt, 0.03);
+    simulationElapsed += dt;
 
     if (boat && config) {
         boat.update(dt);
@@ -1166,7 +1218,8 @@ function animate(now) {
                 boat.position,
                 boat.heading(),
                 boat.velocity,
-                curr
+                curr,
+                simulationElapsed
             );
         });
 
@@ -1266,6 +1319,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=900,
+    height=930,
     scrolling=False,
 )
