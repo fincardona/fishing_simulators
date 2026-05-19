@@ -52,8 +52,9 @@ components.html(
         grid-template-columns: 340px minmax(0, 1fr);
         gap: 14px;
         width: 100%;
-        height: 820px;
+        height: 890px;
         box-sizing: border-box;
+        padding: 4px;
     }
 
     .panel {
@@ -122,6 +123,8 @@ components.html(
         min-width: 0;
         height: 100%;
         overflow: hidden;
+        box-sizing: border-box;
+        padding: 2px;
     }
 
     canvas {
@@ -132,6 +135,7 @@ components.html(
         min-height: 0;
         display: block;
         touch-action: pan-y;
+        box-sizing: border-box;
     }
 
     .touch-controls {
@@ -177,27 +181,24 @@ components.html(
     }
 
     @media (max-width: 900px) {
-        html, body {
-            overflow: hidden;
-        }
-
         .container {
             display: flex;
             flex-direction: column;
             gap: 10px;
-            height: 900px;
+            height: 890px;
+            padding: 4px;
         }
 
         .panel {
-            height: 340px;
-            flex: 0 0 340px;
+            height: 330px;
+            flex: 0 0 330px;
             overflow-y: auto;
             overflow-x: hidden;
         }
 
         .sim-area {
-            height: 520px;
-            flex: 0 0 520px;
+            height: 535px;
+            flex: 0 0 535px;
         }
 
         .touch-controls button {
@@ -213,7 +214,8 @@ components.html(
 
         .container {
             gap: 8px;
-            height: 850px;
+            height: 880px;
+            padding: 4px;
         }
 
         .panel {
@@ -223,8 +225,8 @@ components.html(
         }
 
         .sim-area {
-            height: 500px;
-            flex: 0 0 500px;
+            height: 535px;
+            flex: 0 0 535px;
         }
 
         .row {
@@ -276,7 +278,8 @@ components.html(
         <p class="hint">
             Da PC: frecce della tastiera.<br>
             Da smartphone: usa i pulsanti sotto la simulazione.<br>
-            La posizione laterale della base canna è limitata tra -5 m e +5 m.
+            La posizione laterale della base canna è limitata tra -5 m e +5 m.<br>
+            La lenza è simulata con segmenti ravvicinati per una curva più fluida.
         </p>
 
         <h3>Canne</h3>
@@ -337,6 +340,8 @@ const MAX_FORCE_LURE = 25.0;
 
 const BOAT_TURN_RATE = 1.25;
 const BOAT_SPEED_RESPONSE = 0.85;
+
+const SEGMENT_LENGTH_TARGET_M = 0.30;
 
 const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
@@ -648,7 +653,11 @@ class Line {
     constructor(config, boatPosition) {
         this.config = config;
 
-        this.numSegments = Math.max(8, Math.floor(config.lineLengthM / 3.0));
+        this.numSegments = Math.max(
+            80,
+            Math.floor(config.lineLengthM / SEGMENT_LENGTH_TARGET_M)
+        );
+
         this.restLength = config.lineLengthM / this.numSegments;
 
         this.points = [];
@@ -1048,25 +1057,30 @@ function drawRods(camera) {
 }
 
 function drawLine(line, camera, color) {
-    const points = line.points
-        .map(p => worldToScreen(p, camera))
-        .filter(p => p !== null);
+    const screenPoints = [];
 
-    if (points.length >= 2) {
+    for (let i = 0; i < line.points.length; i++) {
+        const p = worldToScreen(line.points[i], camera);
+        if (p !== null) {
+            screenPoints.push(p);
+        }
+    }
+
+    if (screenPoints.length >= 2) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
+        ctx.moveTo(screenPoints[0].x, screenPoints[0].y);
 
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(points[i].x, points[i].y);
+        for (let i = 1; i < screenPoints.length; i++) {
+            ctx.lineTo(screenPoints[i].x, screenPoints[i].y);
         }
 
         ctx.stroke();
     }
 
-    if (points.length > 0) {
-        const last = points[points.length - 1];
+    if (screenPoints.length > 0) {
+        const last = screenPoints[screenPoints.length - 1];
 
         ctx.fillStyle = color;
         ctx.beginPath();
