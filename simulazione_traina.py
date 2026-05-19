@@ -27,7 +27,7 @@ TROLLING_SPEED_STEP_KNOTS = 0.15
 
 DEFAULT_CURRENT_SPEED_KNOTS = 0.0
 DEFAULT_CURRENT_DIRECTION_DEG = 0.0
-DEFAULT_LURE_MASS_G = 100.0
+DEFAULT_LURE_MASS_G = 40.0
 
 # Acqua di mare
 WATER_DENSITY = 1025.0  # kg/m^3
@@ -120,17 +120,17 @@ def default_rod_layout(n_rods: int) -> List[Tuple[str, float, float, float]]:
 
     if n_rods == 3:
         return [
-            ("Canna 1", -1.0, -90.0, 55.0),
+            ("Canna 1", -1.0, -90.0, 45.0),
             ("Canna 2", -0.7, 0.0, 35.0),
-            ("Canna 3", +0.7, 0.0, 100.0),
+            ("Canna 3", +0.7, +90.0, 550.0),
         ]
 
     if n_rods == 4:
         return [
-            ("Canna 1", -1.0, -90.0, 55.0),
-            ("Canna 2", -0.7, 0.0, 35.0),
-            ("Canna 3", +0.7, 0.0, 100.0),
-            ("Canna 4", +1.0, +90.0, 45.0),
+            ("Canna 1", -1.0, -90.0, 60.0),
+            ("Canna 2", -0.7, 0.0, 70.0),
+            ("Canna 3", +0.7, 0.0, 35.0),
+            ("Canna 4", +1.0, +90.0, 50.0),
         ]
 
     layout = []
