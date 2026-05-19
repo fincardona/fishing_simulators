@@ -201,8 +201,8 @@ components.html(
         }
 
         canvas {
-            height: 370px;
-            flex: 0 0 370px;
+            height: 360px;
+            flex: 0 0 360px;
         }
 
         .touch-controls {
