@@ -52,9 +52,9 @@ components.html(
         grid-template-columns: 340px minmax(0, 1fr);
         gap: 14px;
         width: 100%;
-        height: 890px;
+        height: 780px;
         box-sizing: border-box;
-        padding: 4px;
+        padding: 6px;
     }
 
     .panel {
@@ -124,15 +124,15 @@ components.html(
         height: 100%;
         overflow: hidden;
         box-sizing: border-box;
-        padding: 2px;
+        padding: 4px;
     }
 
     canvas {
         background: #154f73;
         border-radius: 12px;
         width: 100%;
-        flex: 1 1 auto;
-        min-height: 0;
+        height: 650px;
+        flex: 0 0 650px;
         display: block;
         touch-action: pan-y;
         box-sizing: border-box;
@@ -181,29 +181,44 @@ components.html(
     }
 
     @media (max-width: 900px) {
+        html, body {
+            overflow: hidden;
+        }
+
         .container {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            height: 890px;
-            padding: 4px;
+            gap: 8px;
+            height: 850px;
+            padding: 6px;
         }
 
         .panel {
-            height: 330px;
-            flex: 0 0 330px;
+            height: 300px;
+            flex: 0 0 300px;
             overflow-y: auto;
             overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
         }
 
         .sim-area {
-            height: 535px;
-            flex: 0 0 535px;
+            height: 525px;
+            flex: 0 0 525px;
+            padding: 4px;
+        }
+
+        canvas {
+            height: 400px;
+            flex: 0 0 400px;
+        }
+
+        .touch-controls {
+            flex: 0 0 auto;
         }
 
         .touch-controls button {
-            min-height: 48px;
-            font-size: 17px;
+            min-height: 46px;
+            font-size: 16px;
         }
     }
 
@@ -214,19 +229,24 @@ components.html(
 
         .container {
             gap: 8px;
-            height: 880px;
-            padding: 4px;
+            height: 830px;
+            padding: 6px;
         }
 
         .panel {
-            height: 320px;
-            flex: 0 0 320px;
+            height: 300px;
+            flex: 0 0 300px;
             padding: 10px;
         }
 
         .sim-area {
-            height: 535px;
-            flex: 0 0 535px;
+            height: 505px;
+            flex: 0 0 505px;
+        }
+
+        canvas {
+            height: 385px;
+            flex: 0 0 385px;
         }
 
         .row {
@@ -279,7 +299,7 @@ components.html(
             Da PC: frecce della tastiera.<br>
             Da smartphone: usa i pulsanti sotto la simulazione.<br>
             La posizione laterale della base canna è limitata tra -5 m e +5 m.<br>
-            La lenza è simulata con segmenti ravvicinati per una curva più fluida.
+            Ogni lenza è divisa sempre in 100 segmenti.
         </p>
 
         <h3>Canne</h3>
@@ -341,7 +361,7 @@ const MAX_FORCE_LURE = 25.0;
 const BOAT_TURN_RATE = 1.25;
 const BOAT_SPEED_RESPONSE = 0.85;
 
-const SEGMENT_LENGTH_TARGET_M = 0.30;
+const LINE_SEGMENTS_PER_ROD = 100;
 
 const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
@@ -653,11 +673,7 @@ class Line {
     constructor(config, boatPosition) {
         this.config = config;
 
-        this.numSegments = Math.max(
-            80,
-            Math.floor(config.lineLengthM / SEGMENT_LENGTH_TARGET_M)
-        );
-
+        this.numSegments = LINE_SEGMENTS_PER_ROD;
         this.restLength = config.lineLengthM / this.numSegments;
 
         this.points = [];
