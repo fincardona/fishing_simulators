@@ -288,6 +288,7 @@ components.html(
         </div>
 
         <button type="button" onclick="loadChanges()">Carica modifiche</button>
+        <button type="button" onclick="resetToDefaults()">Reset valori default</button>
 
         <p class="hint">
             Da PC: frecce della tastiera.<br>
@@ -300,7 +301,6 @@ components.html(
         <h3>Canne</h3>
         <div id="rodsPanel"></div>
 
-        <button type="button" onclick="resetToDefaults()">Reset valori default</button>
         <button type="button" onclick="loadChanges()">Carica modifiche</button>
 
         <p class="copyright">
