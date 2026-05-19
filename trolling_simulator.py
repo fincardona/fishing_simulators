@@ -201,8 +201,8 @@ components.html(
         }
 
         canvas {
-            height: 370px;
-            flex: 0 0 370px;
+            height: 360px;
+            flex: 0 0 360px;
         }
 
         .touch-controls {
@@ -211,8 +211,8 @@ components.html(
         }
 
         .touch-controls button {
-            min-height: 39px;
-            font-size: 15px;
+            min-height: 38px;
+            font-size: 14px;
         }
     }
 
@@ -240,8 +240,8 @@ components.html(
         }
 
         canvas {
-            height: 360px;
-            flex: 0 0 360px;
+            height: 350px;
+            flex: 0 0 350px;
         }
 
         .row {
@@ -255,8 +255,8 @@ components.html(
         }
 
         .touch-controls button {
-            min-height: 38px;
-            font-size: 14px;
+            min-height: 36px;
+            font-size: 13px;
         }
     }
 </style>
@@ -279,12 +279,12 @@ components.html(
 
         <div class="row">
             <label>Corrente [nodi]</label>
-            <input id="currentSpeed" type="number" min="0" max="12" step="0.1" value="0.0">
+            <input id="currentSpeed" type="number" min="-12" max="12" step="0.1" value="0.0">
         </div>
 
         <div class="row">
             <label>Direzione corrente [°]</label>
-            <input id="currentDirection" type="number" min="-180" max="180" step="1" value="0">
+            <input id="currentDirection" type="number" min="-90" max="90" step="1" value="0">
         </div>
 
         <button type="button" onclick="loadChanges()">Carica modifiche</button>
@@ -292,6 +292,8 @@ components.html(
         <p class="hint">
             Da PC: frecce della tastiera.<br>
             Da smartphone: usa i pulsanti sotto la simulazione.<br>
+            Corrente: valori negativi indicano corrente opposta al verso impostato.<br>
+            Direzione corrente: da -90° a +90° rispetto alla rotta della barca.<br>
             La posizione laterale della base canna è limitata tra -5 m e +5 m.
         </p>
 
@@ -426,6 +428,16 @@ function limitVector(a, maxLen) {
         return mul(a, maxLen / l);
     }
     return a;
+}
+
+function rotateVector(v, angleRad) {
+    const c = Math.cos(angleRad);
+    const s = Math.sin(angleRad);
+
+    return {
+        x: v.x * c - v.y * s,
+        y: v.x * s + v.y * c,
+    };
 }
 
 function resizeCanvas() {
@@ -624,8 +636,8 @@ function readGeneralConfig() {
             MIN_TROLLING_SPEED_KNOTS,
             MAX_TROLLING_SPEED_KNOTS
         ),
-        currentSpeedKnots: getNumberInput("currentSpeed", 0.0, 0.0, null),
-        currentDirectionDeg: normalizeAngleDeg(getNumberInput("currentDirection", 0.0, null, null)),
+        currentSpeedKnots: getNumberInput("currentSpeed", 0.0, -12.0, 12.0),
+        currentDirectionDeg: getNumberInput("currentDirection", 0.0, -90.0, 90.0),
     };
 }
 
@@ -675,14 +687,13 @@ function loadChanges() {
     resetSimulationWithConfig(newConfig);
 }
 
-function currentVector(appConfig) {
+function currentVector(appConfig, boatHeading) {
     const speedMs = appConfig.currentSpeedKnots * KNOT_TO_MS;
     const angleRad = appConfig.currentDirectionDeg * Math.PI / 180.0;
 
-    return {
-        x: Math.cos(angleRad) * speedMs,
-        y: Math.sin(angleRad) * speedMs,
-    };
+    const currentDirection = rotateVector(boatHeading, angleRad);
+
+    return mul(currentDirection, speedMs);
 }
 
 class Boat {
@@ -693,7 +704,8 @@ class Boat {
         this.targetSpeedKnots = initialSpeedKnots;
         this.targetSpeedMs = initialSpeedKnots * KNOT_TO_MS;
 
-        this.velocity = mul(this.heading(), this.targetSpeedMs);
+        this.waterVelocity = mul(this.heading(), this.targetSpeedMs);
+        this.velocity = {...this.waterVelocity};
     }
 
     heading() {
@@ -712,7 +724,7 @@ class Boat {
         };
     }
 
-    update(dt) {
+    update(dt, currentVec) {
         if (keys["ArrowUp"] || touchControls.up) {
             this.targetSpeedKnots += TROLLING_SPEED_STEP_KNOTS;
         }
@@ -737,13 +749,14 @@ class Boat {
             this.headingAngle += BOAT_TURN_RATE * dt;
         }
 
-        const desiredVelocity = mul(this.heading(), this.targetSpeedMs);
+        const desiredWaterVelocity = mul(this.heading(), this.targetSpeedMs);
 
-        this.velocity = add(
-            this.velocity,
-            mul(sub(desiredVelocity, this.velocity), BOAT_SPEED_RESPONSE * dt)
+        this.waterVelocity = add(
+            this.waterVelocity,
+            mul(sub(desiredWaterVelocity, this.waterVelocity), BOAT_SPEED_RESPONSE * dt)
         );
 
+        this.velocity = add(this.waterVelocity, currentVec);
         this.position = add(this.position, mul(this.velocity, dt));
     }
 }
@@ -922,6 +935,9 @@ class Line {
 function resetSimulationWithConfig(appConfig) {
     config = appConfig;
     boat = new Boat(config.initialSpeedKnots);
+
+    const initialCurrent = currentVector(config, boat.heading());
+    boat.velocity = add(boat.waterVelocity, initialCurrent);
 
     lines = config.rods.map(
         rod => new Line(
@@ -1213,7 +1229,8 @@ function drawLine(line, camera, color) {
 }
 
 function drawHud() {
-    const realSpeedKnots = length(boat.velocity) * MS_TO_KNOT;
+    const waterSpeedKnots = length(boat.waterVelocity) * MS_TO_KNOT;
+    const groundSpeedKnots = length(boat.velocity) * MS_TO_KNOT;
     const routeAngleDeg = normalizeAngleDeg(boat.headingAngle * 180.0 / Math.PI);
 
     const smallScreen = WIDTH < 600;
@@ -1221,15 +1238,17 @@ function drawHud() {
     const texts = smallScreen
         ? [
             `Target: ${boat.targetSpeedKnots.toFixed(2)} kn`,
-            `Reale:  ${realSpeedKnots.toFixed(2)} kn`,
+            `Acqua:  ${waterSpeedKnots.toFixed(2)} kn`,
+            `Fondo:  ${groundSpeedKnots.toFixed(2)} kn`,
             `Rotta:  ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
-            `Corr.:  ${config.currentSpeedKnots.toFixed(2)} kn @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
+            `Corr.:  ${config.currentSpeedKnots >= 0 ? "+" : ""}${config.currentSpeedKnots.toFixed(2)} kn @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
         ]
         : [
-            `Velocità target: ${boat.targetSpeedKnots.toFixed(2)} nodi`,
-            `Velocità reale:  ${realSpeedKnots.toFixed(2)} nodi`,
-            `Rotta barca:    ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
-            `Corrente:       ${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
+            `Velocità target acqua: ${boat.targetSpeedKnots.toFixed(2)} nodi`,
+            `Velocità reale acqua:  ${waterSpeedKnots.toFixed(2)} nodi`,
+            `Velocità reale fondo:  ${groundSpeedKnots.toFixed(2)} nodi`,
+            `Rotta barca:           ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
+            `Corrente relativa:     ${config.currentSpeedKnots >= 0 ? "+" : ""}${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
         ];
 
     ctx.font = smallScreen ? "14px Consolas, monospace" : "18px Consolas, monospace";
@@ -1312,9 +1331,9 @@ function animate(now) {
     dt = Math.min(dt, 0.03);
 
     if (boat && config) {
-        boat.update(dt);
+        const curr = currentVector(config, boat.heading());
 
-        const curr = currentVector(config);
+        boat.update(dt, curr);
 
         lines.forEach(line => {
             line.update(
