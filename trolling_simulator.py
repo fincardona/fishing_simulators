@@ -291,6 +291,8 @@ components.html(
         <h3>Canne</h3>
         <div id="rodsPanel"></div>
 
+        <button type="button" onclick="loadChanges()">Carica modifiche</button>
+
         <p class="copyright">
             © 2026 Federico Incardona. Tutti i diritti riservati.
         </p>
