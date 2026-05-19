@@ -180,39 +180,39 @@ components.html(
         .container {
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            height: 770px;
-            padding: 6px;
+            gap: 5px;
+            height: 740px;
+            padding: 5px;
         }
 
         .panel {
-            height: 280px;
-            flex: 0 0 280px;
+            height: 265px;
+            flex: 0 0 265px;
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
         }
 
         .sim-area {
-            height: 465px;
-            flex: 0 0 465px;
-            padding: 4px;
-            gap: 6px;
+            height: 455px;
+            flex: 0 0 455px;
+            padding: 3px;
+            gap: 5px;
         }
 
         canvas {
-            height: 345px;
-            flex: 0 0 345px;
+            height: 340px;
+            flex: 0 0 340px;
         }
 
         .touch-controls {
-            gap: 6px;
-            padding: 7px;
+            gap: 5px;
+            padding: 6px;
         }
 
         .touch-controls button {
-            min-height: 39px;
-            font-size: 15px;
+            min-height: 36px;
+            font-size: 14px;
         }
     }
 
@@ -222,41 +222,41 @@ components.html(
         }
 
         .container {
-            gap: 6px;
-            height: 750px;
-            padding: 6px;
+            gap: 5px;
+            height: 720px;
+            padding: 5px;
         }
 
         .panel {
-            height: 275px;
-            flex: 0 0 275px;
-            padding: 10px;
+            height: 255px;
+            flex: 0 0 255px;
+            padding: 9px;
         }
 
         .sim-area {
-            height: 450px;
-            flex: 0 0 450px;
-            gap: 6px;
+            height: 445px;
+            flex: 0 0 445px;
+            gap: 5px;
         }
 
         canvas {
-            height: 335px;
-            flex: 0 0 335px;
+            height: 330px;
+            flex: 0 0 330px;
         }
 
         .row {
-            grid-template-columns: minmax(0, 1fr) 90px;
+            grid-template-columns: minmax(0, 1fr) 88px;
             font-size: 13px;
         }
 
         .touch-controls {
-            gap: 6px;
-            padding: 7px;
+            gap: 5px;
+            padding: 6px;
         }
 
         .touch-controls button {
-            min-height: 38px;
-            font-size: 14px;
+            min-height: 35px;
+            font-size: 13px;
         }
     }
 </style>
