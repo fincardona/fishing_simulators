@@ -1129,7 +1129,6 @@ function drawHud() {
             `Velocità reale:  ${realSpeedKnots.toFixed(2)} nodi`,
             `Rotta barca:    ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
             `Corrente:       ${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
-            `PC: frecce | Smartphone: pulsanti sotto`,
         ];
 
     ctx.font = smallScreen ? "14px Consolas, monospace" : "18px Consolas, monospace";
