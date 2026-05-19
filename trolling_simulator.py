@@ -12,10 +12,9 @@ st.title("🎣 Simulatore lenze da traina")
 
 st.write(
     """
-    Versione web del simulatore: funziona direttamente nel browser, senza Tkinter e senza Pygame.
-    Usa i controlli sotto, poi premi **Avvia / Reset**.  
-    Durante la simulazione puoi usare **freccia su/giù** per cambiare velocità e
-    **freccia sinistra/destra** per ruotare la barca.
+    Versione web del simulatore: funziona da PC e da smartphone.
+    Da PC puoi usare le frecce della tastiera.  
+    Da smartphone usa i pulsanti sotto la simulazione.
     """
 )
 
@@ -25,19 +24,22 @@ components.html(
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
     body {
         margin: 0;
         font-family: Arial, sans-serif;
         background: #0f3d5a;
         color: white;
+        overscroll-behavior: none;
     }
 
     .container {
         display: grid;
         grid-template-columns: 340px 1fr;
         gap: 14px;
-        height: 780px;
+        min-height: 820px;
     }
 
     .panel {
@@ -46,6 +48,7 @@ components.html(
         padding: 14px;
         overflow-y: auto;
         box-sizing: border-box;
+        max-height: 820px;
     }
 
     .panel h3 {
@@ -74,6 +77,8 @@ components.html(
         font-weight: bold;
         margin-top: 8px;
         width: 100%;
+        touch-action: manipulation;
+        user-select: none;
     }
 
     button:hover {
@@ -92,12 +97,51 @@ components.html(
         margin: 0 0 8px 0;
     }
 
+    .sim-area {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
     canvas {
         background: #154f73;
         border-radius: 12px;
         width: 100%;
-        height: 780px;
+        height: 700px;
         display: block;
+        touch-action: none;
+    }
+
+    .touch-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+        background: #12384f;
+        border-radius: 12px;
+        padding: 12px;
+    }
+
+    .touch-controls button {
+        min-height: 56px;
+        font-size: 20px;
+        margin-top: 0;
+    }
+
+    .touch-controls .wide {
+        grid-column: span 3;
+    }
+
+    .touch-controls .secondary {
+        background: #d7e2ea;
+    }
+
+    .touch-controls .danger {
+        background: #ff9a83;
+    }
+
+    .touch-controls .active {
+        background: #fff1a8;
+        transform: scale(0.98);
     }
 
     .hint {
@@ -105,8 +149,58 @@ components.html(
         opacity: 0.85;
         line-height: 1.35;
     }
+
+    @media (max-width: 900px) {
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: auto;
+        }
+
+        .panel {
+            max-height: none;
+        }
+
+        canvas {
+            height: 520px;
+        }
+
+        .touch-controls button {
+            min-height: 64px;
+            font-size: 22px;
+        }
+    }
+
+    @media (max-width: 520px) {
+        body {
+            font-size: 14px;
+        }
+
+        .container {
+            gap: 10px;
+        }
+
+        .panel {
+            padding: 10px;
+        }
+
+        canvas {
+            height: 430px;
+        }
+
+        .touch-controls {
+            gap: 8px;
+            padding: 10px;
+        }
+
+        .touch-controls button {
+            min-height: 58px;
+            font-size: 20px;
+        }
+    }
 </style>
 </head>
+
 <body>
 <div class="container">
     <div class="panel">
@@ -136,21 +230,34 @@ components.html(
         <button onclick="resetSimulation()">Avvia / Reset</button>
 
         <p class="hint">
-            Comandi: freccia su/giù cambia velocità, freccia sinistra/destra ruota la barca.
-            Il canvas deve avere il focus: clicca sulla simulazione se i tasti non rispondono.
+            Da PC: frecce della tastiera.  
+            Da smartphone: usa i pulsanti sotto la simulazione.
         </p>
 
         <h3>Canne</h3>
         <div id="rodsPanel"></div>
     </div>
 
-    <canvas id="simCanvas" width="1200" height="780" tabindex="0"></canvas>
+    <div class="sim-area">
+        <canvas id="simCanvas" width="1200" height="700" tabindex="0"></canvas>
+
+        <div class="touch-controls">
+            <button id="btnSlow">➖<br>Rallenta</button>
+            <button id="btnForward">⬆️<br>Accelera</button>
+            <button id="btnPause" class="secondary">⏸️<br>Pausa</button>
+
+            <button id="btnLeft">⬅️<br>Sinistra</button>
+            <button id="btnStop" class="danger">⏹️<br>Stop</button>
+            <button id="btnRight">➡️<br>Destra</button>
+
+            <button id="btnReset" class="wide secondary">🔄 Reset simulazione</button>
+        </div>
+    </div>
 </div>
 
 <script>
 const WIDTH = 1200;
-const HEIGHT = 780;
-const FPS = 60;
+const HEIGHT = 700;
 
 const PIXELS_PER_METER = 4.0;
 
@@ -186,6 +293,14 @@ const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
 
 let keys = {};
+let touchControls = {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+};
+
+let paused = false;
 let rodsConfig = [];
 let boat = null;
 let lines = [];
@@ -246,9 +361,7 @@ function limitVector(a, maxLen) {
 
 function defaultRodLayout(n) {
     if (n === 1) {
-        return [
-            ["Canna 1", 0.0, 0.0, 55.0],
-        ];
+        return [["Canna 1", 0.0, 0.0, 55.0]];
     }
 
     if (n === 2) {
@@ -276,6 +389,7 @@ function defaultRodLayout(n) {
     }
 
     let layout = [];
+
     for (let i = 0; i < n; i++) {
         const t = n === 1 ? 0.5 : i / (n - 1);
         const lateral = -BOAT_WIDTH_M / 2 + t * BOAT_WIDTH_M;
@@ -283,6 +397,7 @@ function defaultRodLayout(n) {
         const len = 35.0;
         layout.push([`Canna ${i + 1}`, lateral, angle, len]);
     }
+
     return layout;
 }
 
@@ -291,6 +406,7 @@ function rebuildRods() {
     document.getElementById("numRods").value = n;
 
     const layout = defaultRodLayout(n);
+
     rodsConfig = layout.map(item => ({
         name: item[0],
         trollingDepthM: 0.0,
@@ -312,6 +428,7 @@ function renderRodsPanel() {
     rodsConfig.forEach((rod, i) => {
         const div = document.createElement("div");
         div.className = "rod-card";
+
         div.innerHTML = `
             <h4>Canna ${i + 1}</h4>
 
@@ -350,6 +467,7 @@ function renderRodsPanel() {
                 <input id="rod_${i}_angle" type="number" step="5" value="${rod.rodAngleDeg}">
             </div>
         `;
+
         panel.appendChild(div);
     });
 }
@@ -380,6 +498,7 @@ function readConfigFromPanel() {
 function currentVector(config) {
     const speedMs = config.currentSpeedKnots * KNOT_TO_MS;
     const angleRad = config.currentDirectionDeg * Math.PI / 180.0;
+
     return {
         x: Math.cos(angleRad) * speedMs,
         y: Math.sin(angleRad) * speedMs,
@@ -411,11 +530,11 @@ class Boat {
     }
 
     update(dt) {
-        if (keys["ArrowUp"]) {
+        if (keys["ArrowUp"] || touchControls.up) {
             this.targetSpeedKnots += TROLLING_SPEED_STEP_KNOTS;
         }
 
-        if (keys["ArrowDown"]) {
+        if (keys["ArrowDown"] || touchControls.down) {
             this.targetSpeedKnots -= TROLLING_SPEED_STEP_KNOTS;
         }
 
@@ -427,21 +546,27 @@ class Boat {
 
         this.targetSpeedMs = this.targetSpeedKnots * KNOT_TO_MS;
 
-        if (keys["ArrowLeft"]) {
+        if (keys["ArrowLeft"] || touchControls.left) {
             this.headingAngle -= BOAT_TURN_RATE * dt;
         }
 
-        if (keys["ArrowRight"]) {
+        if (keys["ArrowRight"] || touchControls.right) {
             this.headingAngle += BOAT_TURN_RATE * dt;
         }
 
         const desiredVelocity = mul(this.heading(), this.targetSpeedMs);
+
         this.velocity = add(
             this.velocity,
             mul(sub(desiredVelocity, this.velocity), BOAT_SPEED_RESPONSE * dt)
         );
 
         this.position = add(this.position, mul(this.velocity, dt));
+    }
+
+    stop() {
+        this.targetSpeedKnots = 0;
+        this.targetSpeedMs = 0;
     }
 }
 
@@ -460,6 +585,7 @@ class Line {
                 boatPosition.x - i * this.restLength,
                 boatPosition.y
             );
+
             this.points.push(p);
             this.velocities.push(vec(0, 0));
         }
@@ -545,6 +671,7 @@ class Line {
             const depthFactor = 1.0 + this.config.trollingDepthM / 25.0;
 
             let effectiveMass;
+
             if (i === this.points.length - 1) {
                 const lureMassKg = this.config.lureMassG / 1000.0;
                 effectiveMass = LINE_POINT_MASS * depthFactor + lureMassKg;
@@ -607,6 +734,8 @@ function resetSimulation() {
     config = readConfigFromPanel();
     boat = new Boat(config.initialSpeedKnots);
     lines = config.rods.map(rod => new Line(rod, boat.position));
+    paused = false;
+    updatePauseButton();
     canvas.focus();
 }
 
@@ -800,11 +929,11 @@ function drawHud() {
     const routeAngleDeg = normalizeAngleDeg(boat.headingAngle * 180.0 / Math.PI);
 
     const texts = [
-        `Velocità traina target: ${boat.targetSpeedKnots.toFixed(2)} nodi`,
-        `Velocità reale barca:   ${realSpeedKnots.toFixed(2)} nodi`,
-        `Angolo rotta barca:     ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)} gradi`,
-        `Corrente:               ${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)} gradi`,
-        `SU/GIU: velocità | SINISTRA/DESTRA: ruota | clicca qui se i tasti non rispondono`,
+        `Velocità target: ${boat.targetSpeedKnots.toFixed(2)} nodi`,
+        `Velocità reale:  ${realSpeedKnots.toFixed(2)} nodi`,
+        `Rotta barca:    ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
+        `Corrente:       ${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
+        paused ? `SIMULAZIONE IN PAUSA` : `PC: frecce | Smartphone: pulsanti sotto`,
     ];
 
     ctx.font = "18px Consolas, monospace";
@@ -818,6 +947,19 @@ function drawHud() {
     }
 }
 
+function drawPausedOverlay() {
+    if (!paused) return;
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    ctx.font = "bold 52px Arial";
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.fillText("PAUSA", WIDTH / 2, HEIGHT / 2);
+    ctx.textAlign = "left";
+}
+
 function animate(now) {
     let dt = (now - lastTime) / 1000.0;
     lastTime = now;
@@ -825,19 +967,21 @@ function animate(now) {
     dt = Math.min(dt, 0.03);
 
     if (boat && config) {
-        boat.update(dt);
+        if (!paused) {
+            boat.update(dt);
 
-        const curr = currentVector(config);
+            const curr = currentVector(config);
 
-        lines.forEach(line => {
-            line.update(
-                dt,
-                boat.position,
-                boat.heading(),
-                boat.velocity,
-                curr
-            );
-        });
+            lines.forEach(line => {
+                line.update(
+                    dt,
+                    boat.position,
+                    boat.heading(),
+                    boat.velocity,
+                    curr
+                );
+            });
+        }
 
         const camera = boat.position;
 
@@ -853,10 +997,79 @@ function animate(now) {
         drawBoat(camera);
         drawRods(camera);
         drawHud();
+        drawPausedOverlay();
     }
 
     requestAnimationFrame(animate);
 }
+
+function setTouchControl(name, value, button) {
+    touchControls[name] = value;
+
+    if (value) {
+        button.classList.add("active");
+    } else {
+        button.classList.remove("active");
+    }
+}
+
+function bindHoldButton(buttonId, controlName) {
+    const button = document.getElementById(buttonId);
+
+    const start = event => {
+        event.preventDefault();
+        setTouchControl(controlName, true, button);
+        canvas.focus();
+    };
+
+    const end = event => {
+        event.preventDefault();
+        setTouchControl(controlName, false, button);
+    };
+
+    button.addEventListener("pointerdown", start);
+    button.addEventListener("pointerup", end);
+    button.addEventListener("pointercancel", end);
+    button.addEventListener("pointerleave", end);
+}
+
+function updatePauseButton() {
+    const btn = document.getElementById("btnPause");
+
+    if (paused) {
+        btn.innerHTML = "▶️<br>Riprendi";
+    } else {
+        btn.innerHTML = "⏸️<br>Pausa";
+    }
+}
+
+function togglePause() {
+    paused = !paused;
+    updatePauseButton();
+}
+
+function stopBoat() {
+    if (boat) {
+        boat.stop();
+    }
+}
+
+bindHoldButton("btnForward", "up");
+bindHoldButton("btnSlow", "down");
+bindHoldButton("btnLeft", "left");
+bindHoldButton("btnRight", "right");
+
+document.getElementById("btnPause").addEventListener("click", () => {
+    togglePause();
+});
+
+document.getElementById("btnStop").addEventListener("click", () => {
+    stopBoat();
+});
+
+document.getElementById("btnReset").addEventListener("click", () => {
+    resetSimulation();
+});
 
 window.addEventListener("keydown", event => {
     keys[event.key] = true;
@@ -869,6 +1082,11 @@ window.addEventListener("keydown", event => {
     ) {
         event.preventDefault();
     }
+
+    if (event.key === " ") {
+        togglePause();
+        event.preventDefault();
+    }
 });
 
 window.addEventListener("keyup", event => {
@@ -879,12 +1097,17 @@ canvas.addEventListener("click", () => {
     canvas.focus();
 });
 
+canvas.addEventListener("touchstart", event => {
+    event.preventDefault();
+    canvas.focus();
+}, {passive: false});
+
 rebuildRods();
 requestAnimationFrame(animate);
 </script>
 </body>
 </html>
 """,
-    height=820,
-    scrolling=False,
+    height=900,
+    scrolling=True,
 )
