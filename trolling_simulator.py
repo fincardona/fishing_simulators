@@ -297,6 +297,8 @@ components.html(
             La posizione laterale della base canna è limitata tra -5 m e +5 m.
         </p>
 
+        <button type="button" onclick="resetToDefaults()">Reset valori default</button>
+
         <h3>Canne</h3>
         <div id="rodsPanel"></div>
 
@@ -657,6 +659,20 @@ function initialiseRods() {
     document.getElementById("numRods").value = n;
 
     rodsConfig = defaultRodLayout(n).map(item =>
+        makeRodConfig(item[0], item[1], item[2], item[3])
+    );
+
+    renderRodsPanel();
+    resetSimulationWithConfig(buildAppConfig(rodsConfig));
+}
+
+function resetToDefaults() {
+    document.getElementById("numRods").value = 4;
+    document.getElementById("initialSpeed").value = DEFAULT_TROLLING_SPEED_KNOTS.toFixed(1);
+    document.getElementById("currentSpeed").value = "0.0";
+    document.getElementById("currentDirection").value = "0";
+
+    rodsConfig = defaultRodLayout(4).map(item =>
         makeRodConfig(item[0], item[1], item[2], item[3])
     );
 
