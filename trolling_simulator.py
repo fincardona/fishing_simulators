@@ -40,8 +40,7 @@ components.html(
         margin: 0;
         padding: 0;
         width: 100%;
-        overflow-x: hidden;
-        overflow-y: visible;
+        overflow: hidden;
     }
 
     body {
@@ -50,8 +49,7 @@ components.html(
         font-family: Arial, sans-serif;
         background: #0f3d5a;
         color: white;
-        overflow-x: hidden;
-        overflow-y: visible;
+        overflow: hidden;
     }
 
     .container {
@@ -358,6 +356,19 @@ const colors = [
     "#a0dcdc",
 ];
 
+function resizeStreamlitFrame() {
+    const height = Math.ceil(document.documentElement.scrollHeight);
+
+    window.parent.postMessage(
+        {
+            isStreamlitMessage: true,
+            type: "streamlit:setFrameHeight",
+            height: height
+        },
+        "*"
+    );
+}
+
 function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, value));
 }
@@ -481,6 +492,7 @@ function rebuildRods() {
 
     renderRodsPanel();
     resetSimulation();
+    setTimeout(resizeStreamlitFrame, 50);
 }
 
 function renderRodsPanel() {
@@ -801,6 +813,7 @@ function resetSimulation() {
     boat = new Boat(config.initialSpeedKnots);
     lines = config.rods.map(rod => new Line(rod, boat.position));
     canvas.focus();
+    setTimeout(resizeStreamlitFrame, 50);
 }
 
 function getSceneBounds() {
@@ -1212,8 +1225,20 @@ canvas.addEventListener("touchstart", () => {
     canvas.focus();
 }, {passive: true});
 
+const frameResizeObserver = new ResizeObserver(() => {
+    resizeStreamlitFrame();
+});
+
+frameResizeObserver.observe(document.body);
+
+window.addEventListener("load", () => {
+    resizeCanvas();
+    resizeStreamlitFrame();
+});
+
 window.addEventListener("resize", () => {
     resizeCanvas();
+    resizeStreamlitFrame();
 });
 
 resizeCanvas();
@@ -1223,6 +1248,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=1000,
-    scrolling=True,
+    height=100,
+    scrolling=False,
 )
