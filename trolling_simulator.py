@@ -297,11 +297,10 @@ components.html(
             La posizione laterale della base canna è limitata tra -5 m e +5 m.
         </p>
 
-        <button type="button" onclick="resetToDefaults()">Reset valori default</button>
-
         <h3>Canne</h3>
         <div id="rodsPanel"></div>
 
+        <button type="button" onclick="resetToDefaults()">Reset valori default</button>
         <button type="button" onclick="loadChanges()">Carica modifiche</button>
 
         <p class="copyright">
