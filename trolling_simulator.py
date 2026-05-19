@@ -346,6 +346,7 @@ const BOAT_TURN_RATE = 1.25;
 const BOAT_SPEED_RESPONSE = 0.85;
 
 const LINE_SEGMENTS_PER_ROD = 100;
+const LINE_CONSTRAINT_ITERATIONS = 60;
 
 const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
@@ -547,6 +548,14 @@ function collectCurrentRodValues() {
     return values;
 }
 
+function escapeHtml(value) {
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+}
+
 function renderRodsPanel() {
     const panel = document.getElementById("rodsPanel");
     panel.innerHTML = "";
@@ -560,7 +569,7 @@ function renderRodsPanel() {
 
             <div class="row">
                 <label>Nome</label>
-                <input id="rod_${i}_name" type="text" value="${rod.name}">
+                <input id="rod_${i}_name" type="text" value="${escapeHtml(rod.name)}">
             </div>
 
             <div class="row">
@@ -797,6 +806,7 @@ class Line {
 
         const diameterM = this.config.lineDiameterMm / 1000.0;
         const segmentLength = this.restLength;
+        const previousPoints = this.points.map(p => ({...p}));
 
         for (let i = 1; i < this.points.length; i++) {
             let point = this.points[i];
@@ -863,7 +873,7 @@ class Line {
             this.velocities[i] = velocity;
         }
 
-        for (let iter = 0; iter < 8; iter++) {
+        for (let iter = 0; iter < LINE_CONSTRAINT_ITERATIONS; iter++) {
             this.points[0] = {...anchor};
 
             for (let i = 0; i < this.points.length - 1; i++) {
@@ -890,6 +900,11 @@ class Line {
         }
 
         for (let i = 1; i < this.points.length; i++) {
+            this.velocities[i] = mul(
+                sub(this.points[i], previousPoints[i]),
+                1.0 / Math.max(dt, 1e-6)
+            );
+
             this.velocities[i] = limitVector(this.velocities[i], MAX_POINT_SPEED);
         }
     }
@@ -1185,18 +1200,6 @@ function drawLine(line, camera, color) {
         ctx.beginPath();
         ctx.arc(last.x, last.y, 6, 0, Math.PI * 2);
         ctx.stroke();
-
-        const label = `${line.config.name} - ${line.config.lineLengthM.toFixed(0)} m`;
-        ctx.font = WIDTH < 600 ? "11px Arial" : "13px Arial";
-        const textWidth = ctx.measureText(label).width;
-        const labelX = last.x + 8;
-        const labelY = last.y - 8;
-
-        ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
-        ctx.fillRect(labelX - 3, labelY - 13, textWidth + 6, 17);
-
-        ctx.fillStyle = "white";
-        ctx.fillText(label, labelX, labelY);
     }
 }
 
@@ -1230,6 +1233,55 @@ function drawHud() {
         ctx.fillText(text, 12, y);
         y += step;
     }
+}
+
+function drawLegend() {
+    if (!config || !config.rods || config.rods.length === 0) {
+        return;
+    }
+
+    const smallScreen = WIDTH < 600;
+
+    const padding = smallScreen ? 8 : 10;
+    const rowHeight = smallScreen ? 18 : 22;
+    const fontSize = smallScreen ? 12 : 14;
+    const boxSize = smallScreen ? 9 : 11;
+
+    const legendWidth = smallScreen ? 150 : 190;
+    const legendHeight = padding * 2 + rowHeight * config.rods.length;
+
+    const x = WIDTH - legendWidth - 12;
+    const y = 12;
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.48)";
+    ctx.fillRect(x, y, legendWidth, legendHeight);
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, legendWidth, legendHeight);
+
+    ctx.font = `${fontSize}px Arial`;
+    ctx.textBaseline = "middle";
+
+    config.rods.forEach((rod, i) => {
+        const rowY = y + padding + rowHeight * i + rowHeight / 2;
+        const color = colors[i % colors.length];
+
+        ctx.fillStyle = color;
+        ctx.fillRect(x + padding, rowY - boxSize / 2, boxSize, boxSize);
+
+        ctx.strokeStyle = "#141414";
+        ctx.strokeRect(x + padding, rowY - boxSize / 2, boxSize, boxSize);
+
+        ctx.fillStyle = "white";
+        ctx.fillText(
+            `${rod.name}: ${rod.lineLengthM.toFixed(0)} m`,
+            x + padding + boxSize + 8,
+            rowY
+        );
+    });
+
+    ctx.textBaseline = "alphabetic";
 }
 
 function animate(now) {
@@ -1269,6 +1321,7 @@ function animate(now) {
         drawBoat(camera);
         drawRods(camera);
         drawHud();
+        drawLegend();
     }
 
     requestAnimationFrame(animate);
@@ -1345,6 +1398,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=970,
+    height=1000,
     scrolling=False,
 )
