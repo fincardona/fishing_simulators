@@ -41,6 +41,7 @@ components.html(
         padding: 0;
         width: 100%;
         overflow-x: hidden;
+        overflow-y: visible;
     }
 
     body {
@@ -50,6 +51,7 @@ components.html(
         background: #0f3d5a;
         color: white;
         overflow-x: hidden;
+        overflow-y: visible;
     }
 
     .container {
@@ -65,8 +67,8 @@ components.html(
         border-radius: 12px;
         padding: 14px;
         box-sizing: border-box;
-        max-height: 820px;
-        overflow-y: auto;
+        overflow: visible;
+        max-height: none;
     }
 
     .panel h3 {
@@ -128,8 +130,8 @@ components.html(
         background: #154f73;
         border-radius: 12px;
         width: 100%;
-        height: min(62vh, 640px);
-        min-height: 340px;
+        height: min(58vh, 610px);
+        min-height: 330px;
         display: block;
         touch-action: pan-y;
     }
@@ -140,13 +142,13 @@ components.html(
         gap: 10px;
         background: #12384f;
         border-radius: 12px;
-        padding: 12px;
+        padding: 10px;
         box-sizing: border-box;
     }
 
     .touch-controls button {
-        min-height: 56px;
-        font-size: 20px;
+        min-height: 50px;
+        font-size: 18px;
         margin-top: 0;
     }
 
@@ -179,21 +181,22 @@ components.html(
         .container {
             display: flex;
             flex-direction: column;
+            gap: 10px;
         }
 
         .panel {
+            overflow: visible;
             max-height: none;
-            overflow-y: visible;
         }
 
         canvas {
-            height: 58vh;
-            min-height: 380px;
+            height: 48vh;
+            min-height: 320px;
         }
 
         .touch-controls button {
-            min-height: 54px;
-            font-size: 18px;
+            min-height: 50px;
+            font-size: 17px;
         }
     }
 
@@ -203,7 +206,7 @@ components.html(
         }
 
         .container {
-            gap: 10px;
+            gap: 8px;
         }
 
         .panel {
@@ -216,18 +219,18 @@ components.html(
         }
 
         canvas {
-            height: 54vh;
-            min-height: 360px;
+            height: 44vh;
+            min-height: 300px;
         }
 
         .touch-controls {
-            gap: 8px;
-            padding: 10px;
+            gap: 7px;
+            padding: 8px;
         }
 
         .touch-controls button {
-            min-height: 46px;
-            font-size: 16px;
+            min-height: 42px;
+            font-size: 15px;
         }
     }
 </style>
@@ -403,7 +406,7 @@ function resizeCanvas() {
     DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1;
 
     WIDTH = Math.max(320, Math.floor(rect.width));
-    HEIGHT = Math.max(300, Math.floor(rect.height));
+    HEIGHT = Math.max(280, Math.floor(rect.height));
 
     canvas.width = Math.floor(WIDTH * DEVICE_PIXEL_RATIO);
     canvas.height = Math.floor(HEIGHT * DEVICE_PIXEL_RATIO);
@@ -1220,6 +1223,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=1250,
-    scrolling=True,
+    height=1000,
+    scrolling=False,
 )
