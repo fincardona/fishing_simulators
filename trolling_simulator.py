@@ -679,10 +679,16 @@ class Line {
         this.points = [];
         this.velocities = [];
 
+        const initialBoatHeading = vec(1, 0);
+        const initialAnchor = this.rodTipPoint(
+            boatPosition,
+            initialBoatHeading
+        );
+
         for (let i = 0; i <= this.numSegments; i++) {
             const p = vec(
-                boatPosition.x - i * this.restLength,
-                boatPosition.y
+                initialAnchor.x - i * this.restLength,
+                initialAnchor.y
             );
 
             this.points.push(p);
