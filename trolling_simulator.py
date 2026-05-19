@@ -1224,5 +1224,5 @@ requestAnimationFrame(animate);
 </html>
 """,
     height=1000,
-    scrolling=False,
+    scrolling=True,
 )
