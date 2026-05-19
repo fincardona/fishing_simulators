@@ -1244,9 +1244,9 @@ function drawHud() {
         ]
         : [
             `Velocità target: ${boat.targetSpeedKnots.toFixed(2)} nodi`,
-            `Velocità reale:  ${groundSpeedKnots.toFixed(2)} nodi`,
-            `Rotta barca:     ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
-            `Corrente :       ${config.currentSpeedKnots >= 0 ? "+" : ""}${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
+            `Velocità reale: ${groundSpeedKnots.toFixed(2)} nodi`,
+            `Rotta barca: ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
+            `Corrente : ${config.currentSpeedKnots >= 0 ? "+" : ""}${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
         ];
 
     ctx.font = smallScreen ? "14px Consolas, monospace" : "18px Consolas, monospace";
