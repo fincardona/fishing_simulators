@@ -21,7 +21,7 @@ st.write(
     """
     Versione web del simulatore: funziona da PC e da smartphone.
     Da PC puoi usare le frecce della tastiera.  
-    Da smartphone usa i pulsanti sotto la simulazione.
+    Da smartphone usa i pulsanti a schermo.
     """
 )
 
@@ -128,8 +128,8 @@ components.html(
         background: #154f73;
         border-radius: 12px;
         width: 100%;
-        height: min(70vh, 700px);
-        min-height: 360px;
+        height: min(62vh, 640px);
+        min-height: 340px;
         display: block;
         touch-action: pan-y;
     }
@@ -186,14 +186,22 @@ components.html(
             overflow-y: visible;
         }
 
+        .sim-area {
+            flex-direction: column;
+        }
+
+        .touch-controls {
+            order: -1;
+        }
+
         canvas {
-            height: 62vh;
-            min-height: 340px;
+            height: 52vh;
+            min-height: 330px;
         }
 
         .touch-controls button {
-            min-height: 64px;
-            font-size: 22px;
+            min-height: 58px;
+            font-size: 20px;
         }
     }
 
@@ -216,7 +224,7 @@ components.html(
         }
 
         canvas {
-            height: 56vh;
+            height: 46vh;
             min-height: 300px;
         }
 
@@ -226,8 +234,8 @@ components.html(
         }
 
         .touch-controls button {
-            min-height: 58px;
-            font-size: 20px;
+            min-height: 54px;
+            font-size: 18px;
         }
     }
 </style>
@@ -263,7 +271,7 @@ components.html(
 
         <p class="hint">
             Da PC: frecce della tastiera.<br>
-            Da smartphone: usa i pulsanti sotto la simulazione.<br>
+            Da smartphone: usa i pulsanti a schermo.<br>
             La posizione laterale della base canna è limitata tra -5 m e +5 m.
         </p>
 
@@ -276,8 +284,6 @@ components.html(
     </div>
 
     <div class="sim-area">
-        <canvas id="simCanvas" tabindex="0"></canvas>
-
         <div class="touch-controls">
             <button id="btnSlow">➖<br>Rallenta</button>
             <button id="btnForward">⬆️<br>Accelera</button>
@@ -287,6 +293,8 @@ components.html(
 
             <button id="btnReset" class="wide secondary">🔄 Reset simulazione</button>
         </div>
+
+        <canvas id="simCanvas" tabindex="0"></canvas>
     </div>
 </div>
 
@@ -295,7 +303,7 @@ let WIDTH = 1200;
 let HEIGHT = 700;
 let DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1;
 
-const PIXELS_PER_METER = 4.0;
+let PIXELS_PER_METER = 4.0;
 
 const KNOT_TO_MS = 0.514444;
 const MS_TO_KNOT = 1.94384;
@@ -355,6 +363,16 @@ const colors = [
     "#a0dcdc",
 ];
 
+function updateWorldScale() {
+    if (WIDTH < 430) {
+        PIXELS_PER_METER = 9.0;
+    } else if (WIDTH < 700) {
+        PIXELS_PER_METER = 7.0;
+    } else {
+        PIXELS_PER_METER = 4.0;
+    }
+}
+
 function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
 
@@ -362,6 +380,8 @@ function resizeCanvas() {
 
     WIDTH = Math.max(320, Math.floor(rect.width));
     HEIGHT = Math.max(300, Math.floor(rect.height));
+
+    updateWorldScale();
 
     canvas.width = Math.floor(WIDTH * DEVICE_PIXEL_RATIO);
     canvas.height = Math.floor(HEIGHT * DEVICE_PIXEL_RATIO);
@@ -1003,7 +1023,7 @@ function drawHud() {
             `Velocità reale:  ${realSpeedKnots.toFixed(2)} nodi`,
             `Rotta barca:    ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
             `Corrente:       ${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
-            `PC: frecce | Smartphone: pulsanti sotto`,
+            `PC: frecce | Smartphone: pulsanti a schermo`,
         ];
 
     ctx.font = smallScreen ? "14px Consolas, monospace" : "18px Consolas, monospace";
@@ -1133,6 +1153,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=1400,
+    height=1150,
     scrolling=True,
 )
