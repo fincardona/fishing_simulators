@@ -181,28 +181,28 @@ components.html(
             display: flex;
             flex-direction: column;
             gap: 5px;
-            height: 740px;
+            height: 710px;
             padding: 5px;
         }
 
         .panel {
-            height: 265px;
-            flex: 0 0 265px;
+            height: 255px;
+            flex: 0 0 255px;
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
         }
 
         .sim-area {
-            height: 455px;
-            flex: 0 0 455px;
+            height: 435px;
+            flex: 0 0 435px;
             padding: 3px;
             gap: 5px;
         }
 
         canvas {
-            height: 340px;
-            flex: 0 0 340px;
+            height: 320px;
+            flex: 0 0 320px;
         }
 
         .touch-controls {
@@ -223,25 +223,25 @@ components.html(
 
         .container {
             gap: 5px;
-            height: 720px;
+            height: 690px;
             padding: 5px;
         }
 
         .panel {
-            height: 255px;
-            flex: 0 0 255px;
+            height: 245px;
+            flex: 0 0 245px;
             padding: 9px;
         }
 
         .sim-area {
-            height: 445px;
-            flex: 0 0 445px;
+            height: 425px;
+            flex: 0 0 425px;
             gap: 5px;
         }
 
         canvas {
-            height: 330px;
-            flex: 0 0 330px;
+            height: 315px;
+            flex: 0 0 315px;
         }
 
         .row {
