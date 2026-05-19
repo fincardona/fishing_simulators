@@ -52,7 +52,7 @@ components.html(
         grid-template-columns: 340px minmax(0, 1fr);
         gap: 14px;
         width: 100%;
-        height: 850px;
+        height: 900px;
         box-sizing: border-box;
         padding: 8px;
     }
@@ -131,8 +131,8 @@ components.html(
         background: #154f73;
         border-radius: 12px;
         width: 100%;
-        height: 680px;
-        flex: 0 0 680px;
+        height: 720px;
+        flex: 0 0 720px;
         display: block;
         touch-action: pan-y;
         box-sizing: border-box;
@@ -189,7 +189,7 @@ components.html(
             display: flex;
             flex-direction: column;
             gap: 8px;
-            height: 870px;
+            height: 890px;
             padding: 6px;
         }
 
@@ -202,14 +202,14 @@ components.html(
         }
 
         .sim-area {
-            height: 545px;
-            flex: 0 0 545px;
+            height: 565px;
+            flex: 0 0 565px;
             padding: 4px;
         }
 
         canvas {
-            height: 420px;
-            flex: 0 0 420px;
+            height: 435px;
+            flex: 0 0 435px;
         }
 
         .touch-controls {
@@ -229,7 +229,7 @@ components.html(
 
         .container {
             gap: 8px;
-            height: 850px;
+            height: 880px;
             padding: 6px;
         }
 
@@ -240,13 +240,13 @@ components.html(
         }
 
         .sim-area {
-            height: 525px;
-            flex: 0 0 525px;
+            height: 555px;
+            flex: 0 0 555px;
         }
 
         canvas {
-            height: 405px;
-            flex: 0 0 405px;
+            height: 430px;
+            flex: 0 0 430px;
         }
 
         .row {
@@ -292,8 +292,7 @@ components.html(
             <input id="currentDirection" type="number" min="-180" max="180" step="1" value="0">
         </div>
 
-        <button onclick="rebuildRods()">Rigenera canne</button>
-        <button onclick="resetSimulation()">Avvia / Reset</button>
+        <button onclick="loadChanges()">Carica modifiche</button>
 
         <p class="hint">
             Da PC: frecce della tastiera.<br>
@@ -319,7 +318,7 @@ components.html(
             <button id="btnLeft">⬅️<br>Sinistra</button>
             <button id="btnRight">➡️<br>Destra</button>
 
-            <button id="btnReset" class="wide secondary">🔄 Reset simulazione</button>
+            <button id="btnReset" class="wide secondary">🔄 Carica modifiche</button>
         </div>
     </div>
 </div>
@@ -495,24 +494,56 @@ function defaultRodLayout(n) {
     return layout;
 }
 
-function rebuildRods() {
-    const n = clamp(parseInt(document.getElementById("numRods").value || "4"), 1, 8);
-    document.getElementById("numRods").value = n;
-
-    const layout = defaultRodLayout(n);
-
-    rodsConfig = layout.map(item => ({
-        name: item[0],
+function makeRodConfig(name, lateral, angle, length) {
+    return {
+        name: name,
         trollingDepthM: 0.0,
-        lineLengthM: item[3],
+        lineLengthM: length,
         lineDiameterMm: 0.60,
         lureMassG: 40.0,
-        rodBaseLateralM: item[1],
-        rodAngleDeg: item[2],
-    }));
+        rodBaseLateralM: lateral,
+        rodAngleDeg: angle,
+    };
+}
 
-    renderRodsPanel();
-    resetSimulation();
+function readRodFromPanel(i, fallback) {
+    const nameInput = document.getElementById(`rod_${i}_name`);
+    const depthInput = document.getElementById(`rod_${i}_depth`);
+    const diameterInput = document.getElementById(`rod_${i}_diameter`);
+    const massInput = document.getElementById(`rod_${i}_mass`);
+    const lengthInput = document.getElementById(`rod_${i}_length`);
+    const lateralInput = document.getElementById(`rod_${i}_lateral`);
+    const angleInput = document.getElementById(`rod_${i}_angle`);
+
+    if (!nameInput) {
+        return {...fallback};
+    }
+
+    const lateral = clamp(
+        parseFloat(lateralInput.value || fallback.rodBaseLateralM || "0"),
+        -MAX_ROD_BASE_LATERAL_M,
+        MAX_ROD_BASE_LATERAL_M
+    );
+
+    return {
+        name: nameInput.value || fallback.name || `Canna ${i + 1}`,
+        trollingDepthM: Math.max(0, parseFloat(depthInput.value || fallback.trollingDepthM || "0")),
+        lineLengthM: Math.max(1, parseFloat(lengthInput.value || fallback.lineLengthM || "1")),
+        lineDiameterMm: Math.max(0.01, parseFloat(diameterInput.value || fallback.lineDiameterMm || "0.6")),
+        lureMassG: Math.max(1, parseFloat(massInput.value || fallback.lureMassG || "40")),
+        rodBaseLateralM: lateral,
+        rodAngleDeg: parseFloat(angleInput.value || fallback.rodAngleDeg || "0"),
+    };
+}
+
+function collectCurrentRodValues() {
+    const values = [];
+
+    for (let i = 0; i < rodsConfig.length; i++) {
+        values.push(readRodFromPanel(i, rodsConfig[i]));
+    }
+
+    return values;
 }
 
 function renderRodsPanel() {
@@ -566,23 +597,54 @@ function renderRodsPanel() {
     });
 }
 
+function initialiseRods() {
+    const n = clamp(parseInt(document.getElementById("numRods").value || "4"), 1, 8);
+    document.getElementById("numRods").value = n;
+
+    rodsConfig = defaultRodLayout(n).map(item =>
+        makeRodConfig(item[0], item[1], item[2], item[3])
+    );
+
+    renderRodsPanel();
+    resetSimulationFromCurrentPanel();
+}
+
+function loadChanges() {
+    const requestedN = clamp(parseInt(document.getElementById("numRods").value || "4"), 1, 8);
+    document.getElementById("numRods").value = requestedN;
+
+    const currentValues = collectCurrentRodValues();
+
+    if (requestedN !== currentValues.length) {
+        const layout = defaultRodLayout(requestedN);
+        const newRods = [];
+
+        for (let i = 0; i < requestedN; i++) {
+            if (i < currentValues.length) {
+                newRods.push(currentValues[i]);
+            } else {
+                newRods.push(makeRodConfig(layout[i][0], layout[i][1], layout[i][2], layout[i][3]));
+            }
+        }
+
+        rodsConfig = newRods;
+        renderRodsPanel();
+    } else {
+        rodsConfig = currentValues;
+        renderRodsPanel();
+    }
+
+    resetSimulationFromCurrentPanel();
+}
+
 function readConfigFromPanel() {
+    rodsConfig = collectCurrentRodValues();
+
     rodsConfig.forEach((rod, i) => {
-        rod.name = document.getElementById(`rod_${i}_name`).value || `Canna ${i + 1}`;
-        rod.trollingDepthM = Math.max(0, parseFloat(document.getElementById(`rod_${i}_depth`).value || "0"));
-        rod.lineLengthM = Math.max(1, parseFloat(document.getElementById(`rod_${i}_length`).value || "1"));
-        rod.lineDiameterMm = Math.max(0.01, parseFloat(document.getElementById(`rod_${i}_diameter`).value || "0.6"));
-        rod.lureMassG = Math.max(1, parseFloat(document.getElementById(`rod_${i}_mass`).value || "40"));
-
-        rod.rodBaseLateralM = clamp(
-            parseFloat(document.getElementById(`rod_${i}_lateral`).value || "0"),
-            -MAX_ROD_BASE_LATERAL_M,
-            MAX_ROD_BASE_LATERAL_M
-        );
-
-        document.getElementById(`rod_${i}_lateral`).value = rod.rodBaseLateralM;
-
-        rod.rodAngleDeg = parseFloat(document.getElementById(`rod_${i}_angle`).value || "0");
+        const lateralInput = document.getElementById(`rod_${i}_lateral`);
+        if (lateralInput) {
+            lateralInput.value = rod.rodBaseLateralM;
+        }
     });
 
     return {
@@ -837,7 +899,7 @@ class Line {
 
 let config = null;
 
-function resetSimulation() {
+function resetSimulationFromCurrentPanel() {
     config = readConfigFromPanel();
     boat = new Boat(config.initialSpeedKnots);
 
@@ -850,6 +912,7 @@ function resetSimulation() {
         )
     );
 
+    resizeCanvas();
     canvas.focus();
 }
 
@@ -1238,7 +1301,7 @@ bindHoldButton("btnLeft", "left");
 bindHoldButton("btnRight", "right");
 
 document.getElementById("btnReset").addEventListener("click", () => {
-    resetSimulation();
+    loadChanges();
 });
 
 window.addEventListener("keydown", event => {
@@ -1271,12 +1334,12 @@ window.addEventListener("resize", () => {
 });
 
 resizeCanvas();
-rebuildRods();
+initialiseRods();
 requestAnimationFrame(animate);
 </script>
 </body>
 </html>
 """,
-    height=960,
+    height=1030,
     scrolling=False,
 )
