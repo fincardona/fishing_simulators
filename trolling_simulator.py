@@ -240,8 +240,8 @@ components.html(
         }
 
         canvas {
-            height: 350px;
-            flex: 0 0 350px;
+            height: 360px;
+            flex: 0 0 360px;
         }
 
         .row {
