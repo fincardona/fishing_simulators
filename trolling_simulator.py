@@ -5,7 +5,6 @@
 # Unauthorized copying, modification, distribution, or commercial use
 # is not permitted without prior written permission.
 
-
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -26,6 +25,8 @@ st.write(
     """
 )
 
+st.caption("© 2026 Federico Incardona. Tutti i diritti riservati.")
+
 components.html(
     r"""
 <!DOCTYPE html>
@@ -35,28 +36,37 @@ components.html(
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
+    html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
     body {
         margin: 0;
+        padding: 0;
         font-family: Arial, sans-serif;
         background: #0f3d5a;
         color: white;
-        overscroll-behavior: none;
+        overflow-x: hidden;
     }
 
     .container {
         display: grid;
-        grid-template-columns: 340px 1fr;
+        grid-template-columns: 340px minmax(0, 1fr);
         gap: 14px;
-        min-height: 820px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .panel {
         background: #12384f;
         border-radius: 12px;
         padding: 14px;
-        overflow-y: auto;
         box-sizing: border-box;
         max-height: 820px;
+        overflow-y: auto;
     }
 
     .panel h3 {
@@ -65,7 +75,7 @@ components.html(
 
     .row {
         display: grid;
-        grid-template-columns: 1fr 95px;
+        grid-template-columns: minmax(0, 1fr) 95px;
         gap: 8px;
         align-items: center;
         margin-bottom: 8px;
@@ -77,6 +87,8 @@ components.html(
         border: none;
         padding: 6px;
         font-size: 14px;
+        box-sizing: border-box;
+        max-width: 100%;
     }
 
     button {
@@ -109,15 +121,17 @@ components.html(
         display: flex;
         flex-direction: column;
         gap: 10px;
+        min-width: 0;
     }
 
     canvas {
         background: #154f73;
         border-radius: 12px;
         width: 100%;
-        height: 700px;
+        height: min(70vh, 700px);
+        min-height: 360px;
         display: block;
-        touch-action: none;
+        touch-action: pan-y;
     }
 
     .touch-controls {
@@ -127,6 +141,7 @@ components.html(
         background: #12384f;
         border-radius: 12px;
         padding: 12px;
+        box-sizing: border-box;
     }
 
     .touch-controls button {
@@ -154,19 +169,26 @@ components.html(
         line-height: 1.35;
     }
 
+    .copyright {
+        margin-top: 14px;
+        font-size: 12px;
+        opacity: 0.65;
+    }
+
     @media (max-width: 900px) {
         .container {
             display: flex;
             flex-direction: column;
-            min-height: auto;
         }
 
         .panel {
             max-height: none;
+            overflow-y: visible;
         }
 
         canvas {
-            height: 520px;
+            height: 62vh;
+            min-height: 340px;
         }
 
         .touch-controls button {
@@ -188,8 +210,14 @@ components.html(
             padding: 10px;
         }
 
+        .row {
+            grid-template-columns: minmax(0, 1fr) 90px;
+            font-size: 13px;
+        }
+
         canvas {
-            height: 430px;
+            height: 56vh;
+            min-height: 300px;
         }
 
         .touch-controls {
@@ -234,17 +262,21 @@ components.html(
         <button onclick="resetSimulation()">Avvia / Reset</button>
 
         <p class="hint">
-            Da PC: frecce della tastiera.  
-            Da smartphone: usa i pulsanti sotto la simulazione.
+            Da PC: frecce della tastiera.<br>
+            Da smartphone: usa i pulsanti sotto la simulazione.<br>
             La posizione laterale della base canna è limitata tra -5 m e +5 m.
         </p>
 
         <h3>Canne</h3>
         <div id="rodsPanel"></div>
+
+        <p class="copyright">
+            © 2026 Federico Incardona. Tutti i diritti riservati.
+        </p>
     </div>
 
     <div class="sim-area">
-        <canvas id="simCanvas" width="1200" height="700" tabindex="0"></canvas>
+        <canvas id="simCanvas" tabindex="0"></canvas>
 
         <div class="touch-controls">
             <button id="btnSlow">➖<br>Rallenta</button>
@@ -259,8 +291,9 @@ components.html(
 </div>
 
 <script>
-const WIDTH = 1200;
-const HEIGHT = 700;
+let WIDTH = 1200;
+let HEIGHT = 700;
+let DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1;
 
 const PIXELS_PER_METER = 4.0;
 
@@ -321,6 +354,27 @@ const colors = [
     "#ffb450",
     "#a0dcdc",
 ];
+
+function resizeCanvas() {
+    const rect = canvas.getBoundingClientRect();
+
+    DEVICE_PIXEL_RATIO = window.devicePixelRatio || 1;
+
+    WIDTH = Math.max(320, Math.floor(rect.width));
+    HEIGHT = Math.max(300, Math.floor(rect.height));
+
+    canvas.width = Math.floor(WIDTH * DEVICE_PIXEL_RATIO);
+    canvas.height = Math.floor(HEIGHT * DEVICE_PIXEL_RATIO);
+
+    ctx.setTransform(
+        DEVICE_PIXEL_RATIO,
+        0,
+        0,
+        DEVICE_PIXEL_RATIO,
+        0,
+        0
+    );
+}
 
 function clamp(value, minimum, maximum) {
     return Math.max(minimum, Math.min(maximum, value));
@@ -935,22 +989,32 @@ function drawHud() {
     const realSpeedKnots = length(boat.velocity) * MS_TO_KNOT;
     const routeAngleDeg = normalizeAngleDeg(boat.headingAngle * 180.0 / Math.PI);
 
-    const texts = [
-        `Velocità target: ${boat.targetSpeedKnots.toFixed(2)} nodi`,
-        `Velocità reale:  ${realSpeedKnots.toFixed(2)} nodi`,
-        `Rotta barca:    ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
-        `Corrente:       ${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
-        `PC: frecce | Smartphone: pulsanti sotto`,
-    ];
+    const smallScreen = WIDTH < 600;
 
-    ctx.font = "18px Consolas, monospace";
+    const texts = smallScreen
+        ? [
+            `Target: ${boat.targetSpeedKnots.toFixed(2)} kn`,
+            `Reale:  ${realSpeedKnots.toFixed(2)} kn`,
+            `Rotta:  ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
+            `Corr.:  ${config.currentSpeedKnots.toFixed(2)} kn @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
+        ]
+        : [
+            `Velocità target: ${boat.targetSpeedKnots.toFixed(2)} nodi`,
+            `Velocità reale:  ${realSpeedKnots.toFixed(2)} nodi`,
+            `Rotta barca:    ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
+            `Corrente:       ${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
+            `PC: frecce | Smartphone: pulsanti sotto`,
+        ];
+
+    ctx.font = smallScreen ? "14px Consolas, monospace" : "18px Consolas, monospace";
     ctx.fillStyle = "white";
 
-    let y = 26;
+    let y = smallScreen ? 20 : 26;
+    const step = smallScreen ? 18 : 24;
 
     for (const text of texts) {
         ctx.fillText(text, 12, y);
-        y += 24;
+        y += step;
     }
 }
 
@@ -1054,17 +1118,21 @@ canvas.addEventListener("click", () => {
     canvas.focus();
 });
 
-canvas.addEventListener("touchstart", event => {
-    event.preventDefault();
+canvas.addEventListener("touchstart", () => {
     canvas.focus();
-}, {passive: false});
+}, {passive: true});
 
+window.addEventListener("resize", () => {
+    resizeCanvas();
+});
+
+resizeCanvas();
 rebuildRods();
 requestAnimationFrame(animate);
 </script>
 </body>
 </html>
 """,
-    height=900,
+    height=1400,
     scrolling=True,
 )
