@@ -52,7 +52,7 @@ components.html(
         grid-template-columns: 340px minmax(0, 1fr);
         gap: 14px;
         width: 100%;
-        height: 870px;
+        height: 790px;
         box-sizing: border-box;
         padding: 8px;
     }
@@ -131,8 +131,8 @@ components.html(
         background: #154f73;
         border-radius: 12px;
         width: 100%;
-        height: 720px;
-        flex: 0 0 720px;
+        height: 620px;
+        flex: 0 0 620px;
         display: block;
         touch-action: pan-y;
         box-sizing: border-box;
@@ -150,7 +150,7 @@ components.html(
     }
 
     .touch-controls button {
-        min-height: 58px;
+        min-height: 52px;
         font-size: 18px;
         margin-top: 0;
     }
@@ -181,7 +181,7 @@ components.html(
             display: flex;
             flex-direction: column;
             gap: 8px;
-            height: 850px;
+            height: 830px;
             padding: 6px;
         }
 
@@ -194,18 +194,18 @@ components.html(
         }
 
         .sim-area {
-            height: 525px;
-            flex: 0 0 525px;
+            height: 505px;
+            flex: 0 0 505px;
             padding: 4px;
         }
 
         canvas {
-            height: 400px;
-            flex: 0 0 400px;
+            height: 380px;
+            flex: 0 0 380px;
         }
 
         .touch-controls button {
-            min-height: 46px;
+            min-height: 44px;
             font-size: 16px;
         }
     }
@@ -217,7 +217,7 @@ components.html(
 
         .container {
             gap: 8px;
-            height: 830px;
+            height: 810px;
             padding: 6px;
         }
 
@@ -228,13 +228,13 @@ components.html(
         }
 
         .sim-area {
-            height: 505px;
-            flex: 0 0 505px;
+            height: 485px;
+            flex: 0 0 485px;
         }
 
         canvas {
-            height: 385px;
-            flex: 0 0 385px;
+            height: 365px;
+            flex: 0 0 365px;
         }
 
         .row {
@@ -248,7 +248,7 @@ components.html(
         }
 
         .touch-controls button {
-            min-height: 42px;
+            min-height: 40px;
             font-size: 15px;
         }
     }
@@ -1398,6 +1398,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=900,
+    height=850,
     scrolling=False,
 )
