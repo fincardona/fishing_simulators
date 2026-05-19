@@ -52,7 +52,7 @@ components.html(
         grid-template-columns: 340px minmax(0, 1fr);
         gap: 14px;
         width: 100%;
-        height: 900px;
+        height: 870px;
         box-sizing: border-box;
         padding: 8px;
     }
@@ -150,17 +150,9 @@ components.html(
     }
 
     .touch-controls button {
-        min-height: 50px;
+        min-height: 58px;
         font-size: 18px;
         margin-top: 0;
-    }
-
-    .touch-controls .wide {
-        grid-column: span 2;
-    }
-
-    .touch-controls .secondary {
-        background: #d7e2ea;
     }
 
     .touch-controls .active {
@@ -189,7 +181,7 @@ components.html(
             display: flex;
             flex-direction: column;
             gap: 8px;
-            height: 890px;
+            height: 850px;
             padding: 6px;
         }
 
@@ -202,18 +194,14 @@ components.html(
         }
 
         .sim-area {
-            height: 565px;
-            flex: 0 0 565px;
+            height: 525px;
+            flex: 0 0 525px;
             padding: 4px;
         }
 
         canvas {
-            height: 435px;
-            flex: 0 0 435px;
-        }
-
-        .touch-controls {
-            flex: 0 0 auto;
+            height: 400px;
+            flex: 0 0 400px;
         }
 
         .touch-controls button {
@@ -229,7 +217,7 @@ components.html(
 
         .container {
             gap: 8px;
-            height: 880px;
+            height: 830px;
             padding: 6px;
         }
 
@@ -240,13 +228,13 @@ components.html(
         }
 
         .sim-area {
-            height: 555px;
-            flex: 0 0 555px;
+            height: 505px;
+            flex: 0 0 505px;
         }
 
         canvas {
-            height: 430px;
-            flex: 0 0 430px;
+            height: 385px;
+            flex: 0 0 385px;
         }
 
         .row {
@@ -317,8 +305,6 @@ components.html(
 
             <button type="button" id="btnLeft">⬅️<br>Sinistra</button>
             <button type="button" id="btnRight">➡️<br>Destra</button>
-
-            <button type="button" id="btnReset" class="wide secondary">🔄 Carica modifiche</button>
         </div>
     </div>
 </div>
@@ -360,8 +346,6 @@ const BOAT_TURN_RATE = 1.25;
 const BOAT_SPEED_RESPONSE = 0.85;
 
 const LINE_SEGMENTS_PER_ROD = 100;
-const PRESETTLE_STEPS = 180;
-const PRESETTLE_DT = 1.0 / 60.0;
 
 const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
@@ -517,7 +501,6 @@ function getNumberInput(id, fallback, minimum = null, maximum = null) {
     }
 
     const parsed = parseFloat(element.value);
-
     let value = Number.isFinite(parsed) ? parsed : fallback;
 
     if (minimum !== null) {
@@ -538,7 +521,7 @@ function readRodFromPanel(i, fallback) {
         return {...fallback};
     }
 
-    const rod = {
+    return {
         name: nameInput.value || fallback.name || `Canna ${i + 1}`,
         trollingDepthM: getNumberInput(`rod_${i}_depth`, fallback.trollingDepthM, 0.0, null),
         lineLengthM: getNumberInput(`rod_${i}_length`, fallback.lineLengthM, 1.0, null),
@@ -552,8 +535,6 @@ function readRodFromPanel(i, fallback) {
         ),
         rodAngleDeg: getNumberInput(`rod_${i}_angle`, fallback.rodAngleDeg, null, null),
     };
-
-    return rod;
 }
 
 function collectCurrentRodValues() {
@@ -650,7 +631,7 @@ function initialiseRods() {
     );
 
     renderRodsPanel();
-    resetSimulationWithConfig(buildAppConfig(rodsConfig), false);
+    resetSimulationWithConfig(buildAppConfig(rodsConfig));
 }
 
 function loadChanges() {
@@ -670,11 +651,10 @@ function loadChanges() {
     }
 
     rodsConfig = newRods;
-
     const newConfig = buildAppConfig(rodsConfig);
 
     renderRodsPanel();
-    resetSimulationWithConfig(newConfig, true);
+    resetSimulationWithConfig(newConfig);
 }
 
 function currentVector(appConfig) {
@@ -915,7 +895,7 @@ class Line {
     }
 }
 
-function resetSimulationWithConfig(appConfig, doPresettle) {
+function resetSimulationWithConfig(appConfig) {
     config = appConfig;
     boat = new Boat(config.initialSpeedKnots);
 
@@ -928,31 +908,9 @@ function resetSimulationWithConfig(appConfig, doPresettle) {
         )
     );
 
-    if (doPresettle) {
-        presettleSimulation();
-    }
-
     lastTime = performance.now();
     resizeCanvas();
     canvas.focus();
-}
-
-function presettleSimulation() {
-    const curr = currentVector(config);
-
-    for (let step = 0; step < PRESETTLE_STEPS; step++) {
-        boat.update(PRESETTLE_DT);
-
-        lines.forEach(line => {
-            line.update(
-                PRESETTLE_DT,
-                boat.position,
-                boat.heading(),
-                boat.velocity,
-                curr
-            );
-        });
-    }
 }
 
 function getSceneBounds() {
@@ -1227,6 +1185,18 @@ function drawLine(line, camera, color) {
         ctx.beginPath();
         ctx.arc(last.x, last.y, 6, 0, Math.PI * 2);
         ctx.stroke();
+
+        const label = `${line.config.name} - ${line.config.lineLengthM.toFixed(0)} m`;
+        ctx.font = WIDTH < 600 ? "11px Arial" : "13px Arial";
+        const textWidth = ctx.measureText(label).width;
+        const labelX = last.x + 8;
+        const labelY = last.y - 8;
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+        ctx.fillRect(labelX - 3, labelY - 13, textWidth + 6, 17);
+
+        ctx.fillStyle = "white";
+        ctx.fillText(label, labelX, labelY);
     }
 }
 
@@ -1339,10 +1309,6 @@ bindHoldButton("btnSlow", "down");
 bindHoldButton("btnLeft", "left");
 bindHoldButton("btnRight", "right");
 
-document.getElementById("btnReset").addEventListener("click", () => {
-    loadChanges();
-});
-
 window.addEventListener("keydown", event => {
     keys[event.key] = true;
 
@@ -1379,6 +1345,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=1100,
+    height=970,
     scrolling=False,
 )
