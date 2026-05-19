@@ -1238,15 +1238,15 @@ function drawHud() {
     const texts = smallScreen
         ? [
             `Target: ${boat.targetSpeedKnots.toFixed(2)} kn`,
-            `Reale:  ${groundSpeedKnots.toFixed(2)} kn`,
-            `Rotta:  ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
-            `Corr.:  ${config.currentSpeedKnots >= 0 ? "+" : ""}${config.currentSpeedKnots.toFixed(2)} kn @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
+            `Reale: ${groundSpeedKnots.toFixed(2)} kn`,
+            `Rotta: ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
+            `Corr.: ${config.currentSpeedKnots >= 0 ? "+" : ""}${config.currentSpeedKnots.toFixed(2)} kn @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
         ]
         : [
             `Velocità target: ${boat.targetSpeedKnots.toFixed(2)} nodi`,
             `Velocità reale: ${groundSpeedKnots.toFixed(2)} nodi`,
             `Rotta barca: ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
-            `Corrente : ${config.currentSpeedKnots >= 0 ? "+" : ""}${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
+            `Corrente: ${config.currentSpeedKnots >= 0 ? "+" : ""}${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
         ];
 
     ctx.font = smallScreen ? "14px Consolas, monospace" : "18px Consolas, monospace";
