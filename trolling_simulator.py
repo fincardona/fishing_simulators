@@ -1251,46 +1251,58 @@ function drawLegend() {
 
     const smallScreen = WIDTH < 600;
 
-    const padding = smallScreen ? 8 : 10;
-    const rowHeight = smallScreen ? 18 : 22;
-    const fontSize = smallScreen ? 12 : 14;
+    const fontSize = smallScreen ? 14 : 18;
+    const rowHeight = smallScreen ? 18 : 24;
     const boxSize = smallScreen ? 9 : 11;
+    const paddingRight = 12;
+    const topY = smallScreen ? 20 : 26;
 
-    const legendWidth = smallScreen ? 150 : 190;
-    const legendHeight = padding * 2 + rowHeight * config.rods.length;
+    ctx.font = smallScreen ? "14px Consolas, monospace" : "18px Consolas, monospace";
+    ctx.textBaseline = "alphabetic";
 
-    const x = WIDTH - legendWidth - 12;
-    const y = 12;
+    const labels = config.rods.map((rod, i) => {
+        return {
+            text: `${rod.name}: ${rod.lineLengthM.toFixed(0)} m`,
+            color: colors[i % colors.length],
+        };
+    });
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.48)";
-    ctx.fillRect(x, y, legendWidth, legendHeight);
+    let maxTextWidth = 0;
 
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x, y, legendWidth, legendHeight);
+    labels.forEach(item => {
+        maxTextWidth = Math.max(maxTextWidth, ctx.measureText(item.text).width);
+    });
 
-    ctx.font = `${fontSize}px Arial`;
-    ctx.textBaseline = "middle";
+    const totalWidth = boxSize + 8 + maxTextWidth;
+    const x = WIDTH - totalWidth - paddingRight;
 
-    config.rods.forEach((rod, i) => {
-        const rowY = y + padding + rowHeight * i + rowHeight / 2;
-        const color = colors[i % colors.length];
+    labels.forEach((item, i) => {
+        const y = topY + i * rowHeight;
 
-        ctx.fillStyle = color;
-        ctx.fillRect(x + padding, rowY - boxSize / 2, boxSize, boxSize);
+        ctx.fillStyle = item.color;
+        ctx.fillRect(
+            x,
+            y - boxSize + 2,
+            boxSize,
+            boxSize
+        );
 
         ctx.strokeStyle = "#141414";
-        ctx.strokeRect(x + padding, rowY - boxSize / 2, boxSize, boxSize);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(
+            x,
+            y - boxSize + 2,
+            boxSize,
+            boxSize
+        );
 
         ctx.fillStyle = "white";
         ctx.fillText(
-            `${rod.name}: ${rod.lineLengthM.toFixed(0)} m`,
-            x + padding + boxSize + 8,
-            rowY
+            item.text,
+            x + boxSize + 8,
+            y
         );
     });
-
-    ctx.textBaseline = "alphabetic";
 }
 
 function animate(now) {
