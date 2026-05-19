@@ -52,9 +52,9 @@ components.html(
         grid-template-columns: 340px minmax(0, 1fr);
         gap: 14px;
         width: 100%;
-        height: 780px;
+        height: 850px;
         box-sizing: border-box;
-        padding: 6px;
+        padding: 8px;
     }
 
     .panel {
@@ -131,8 +131,8 @@ components.html(
         background: #154f73;
         border-radius: 12px;
         width: 100%;
-        height: 650px;
-        flex: 0 0 650px;
+        height: 680px;
+        flex: 0 0 680px;
         display: block;
         touch-action: pan-y;
         box-sizing: border-box;
@@ -189,7 +189,7 @@ components.html(
             display: flex;
             flex-direction: column;
             gap: 8px;
-            height: 850px;
+            height: 870px;
             padding: 6px;
         }
 
@@ -202,14 +202,14 @@ components.html(
         }
 
         .sim-area {
-            height: 525px;
-            flex: 0 0 525px;
+            height: 545px;
+            flex: 0 0 545px;
             padding: 4px;
         }
 
         canvas {
-            height: 400px;
-            flex: 0 0 400px;
+            height: 420px;
+            flex: 0 0 420px;
         }
 
         .touch-controls {
@@ -229,7 +229,7 @@ components.html(
 
         .container {
             gap: 8px;
-            height: 830px;
+            height: 850px;
             padding: 6px;
         }
 
@@ -240,13 +240,13 @@ components.html(
         }
 
         .sim-area {
-            height: 505px;
-            flex: 0 0 505px;
+            height: 525px;
+            flex: 0 0 525px;
         }
 
         canvas {
-            height: 385px;
-            flex: 0 0 385px;
+            height: 405px;
+            flex: 0 0 405px;
         }
 
         .row {
@@ -298,8 +298,7 @@ components.html(
         <p class="hint">
             Da PC: frecce della tastiera.<br>
             Da smartphone: usa i pulsanti sotto la simulazione.<br>
-            La posizione laterale della base canna è limitata tra -5 m e +5 m.<br>
-            Ogni lenza è divisa sempre in 100 segmenti.
+            La posizione laterale della base canna è limitata tra -5 m e +5 m.
         </p>
 
         <h3>Canne</h3>
@@ -611,10 +610,12 @@ function currentVector(config) {
 class Boat {
     constructor(initialSpeedKnots) {
         this.position = vec(0, 0);
-        this.velocity = vec(0, 0);
         this.headingAngle = 0.0;
+
         this.targetSpeedKnots = initialSpeedKnots;
         this.targetSpeedMs = initialSpeedKnots * KNOT_TO_MS;
+
+        this.velocity = mul(this.heading(), this.targetSpeedMs);
     }
 
     heading() {
@@ -670,7 +671,7 @@ class Boat {
 }
 
 class Line {
-    constructor(config, boatPosition) {
+    constructor(config, boatPosition, boatHeading, boatVelocity) {
         this.config = config;
 
         this.numSegments = LINE_SEGMENTS_PER_ROD;
@@ -679,20 +680,21 @@ class Line {
         this.points = [];
         this.velocities = [];
 
-        const initialBoatHeading = vec(1, 0);
         const initialAnchor = this.rodTipPoint(
             boatPosition,
-            initialBoatHeading
+            boatHeading
         );
 
+        const backward = mul(boatHeading, -1);
+
         for (let i = 0; i <= this.numSegments; i++) {
-            const p = vec(
-                initialAnchor.x - i * this.restLength,
-                initialAnchor.y
+            const p = add(
+                initialAnchor,
+                mul(backward, i * this.restLength)
             );
 
             this.points.push(p);
-            this.velocities.push(vec(0, 0));
+            this.velocities.push({...boatVelocity});
         }
     }
 
@@ -838,7 +840,16 @@ let config = null;
 function resetSimulation() {
     config = readConfigFromPanel();
     boat = new Boat(config.initialSpeedKnots);
-    lines = config.rods.map(rod => new Line(rod, boat.position));
+
+    lines = config.rods.map(
+        rod => new Line(
+            rod,
+            boat.position,
+            boat.heading(),
+            boat.velocity
+        )
+    );
+
     canvas.focus();
 }
 
@@ -1266,6 +1277,6 @@ requestAnimationFrame(animate);
 </body>
 </html>
 """,
-    height=900,
+    height=960,
     scrolling=False,
 )
