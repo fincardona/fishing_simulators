@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fincardona.github.io/fishing_simulators/sitemap.xml

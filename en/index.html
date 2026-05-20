@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trolling spread simulator - rods, lines, lures and sea current</title>
+  <meta name="description" content="Interactive trolling spread simulator to visualize fishing lines, rods, lures, sea current, boat speed and turns. Useful for planning a trolling setup.">
+  <link rel="canonical" href="https://fincardona.github.io/fishing_simulators/en/">
+  <link rel="alternate" hreflang="x-default" href="https://fincardona.github.io/fishing_simulators/">
+  <link rel="alternate" hreflang="en" href="https://fincardona.github.io/fishing_simulators/en/">
+  <link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+
+<body>
+  <header class="page-header">
+    <div class="topbar">
+      <a class="language-link" href="../it/">🇮🇹 Italiano</a>
+    </div>
+
+    <h1>🎣 Trolling spread simulator</h1>
+
+    <p class="lead">
+      Interactive simulator for visualizing how fishing lines spread behind a boat while trolling.
+    </p>
+
+    <p>
+      This web simulator lets you configure the number of rods, line length, line diameter,
+      lure weight, rod position, trolling speed and sea current. The simulation shows in real time
+      how the lines behave while the boat moves or changes course.
+    </p>
+
+    <p>
+      It is designed as a practical visual tool for planning a trolling spread, understanding lure
+      separation, reducing the risk of crossing lines and observing the effect of turns and current.
+      The model is simplified, but it accounts for boat speed, current, line drag, lure drag,
+      lure mass and rod layout.
+    </p>
+
+    <a class="button fuel" href="https://www.paypal.me/finc90" target="_blank" rel="noopener noreferrer">
+      ⛽ Help me go fishing: chip in for fuel
+    </a>
+
+    <p class="note">
+      On desktop, use the keyboard arrows. On smartphone, use the buttons below the simulation.
+    </p>
+  </header>
+
+  <main class="sim-wrapper">
+    <div class="container">
+      <aside class="panel">
+        <h3 data-i18n="general_settings"></h3>
+
+        <div class="row">
+          <label data-i18n="number_rods"></label>
+          <input id="numRods" type="number" min="1" max="8" step="1" value="4">
+        </div>
+
+        <div class="row">
+          <label data-i18n="initial_speed"></label>
+          <input id="initialSpeed" type="number" min="0" max="12" step="0.1" value="6.0">
+        </div>
+
+        <div class="row">
+          <label data-i18n="current_speed"></label>
+          <input id="currentSpeed" type="number" min="-12" max="12" step="0.1" value="0.0">
+        </div>
+
+        <div class="row">
+          <label data-i18n="current_direction"></label>
+          <input id="currentDirection" type="number" min="-90" max="90" step="1" value="0">
+        </div>
+
+        <button type="button" onclick="loadChanges()" data-i18n="apply_changes"></button>
+        <button type="button" onclick="resetToDefaults()" data-i18n="reset_defaults"></button>
+
+        <p class="hint" data-i18n-html="hint"></p>
+
+        <h3 data-i18n="rods"></h3>
+        <div id="rodsPanel"></div>
+
+        <button type="button" onclick="loadChanges()" data-i18n="apply_changes"></button>
+
+        <p class="copyright">
+          © 2026 Federico Incardona. All rights reserved.
+        </p>
+      </aside>
+
+      <section class="sim-area">
+        <canvas id="simCanvas" tabindex="0"></canvas>
+
+        <div class="touch-controls">
+          <button type="button" id="btnSlow">⬇️<br><span data-i18n="slow_down"></span></button>
+          <button type="button" id="btnForward">⬆️<br><span data-i18n="speed_up"></span></button>
+          <button type="button" id="btnLeft">⬅️<br><span data-i18n="left"></span></button>
+          <button type="button" id="btnRight">➡️<br><span data-i18n="right"></span></button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    window.APP_LANG = "en";
+  </script>
+  <script src="../assets/simulator.js"></script>
+</body>
+</html>
