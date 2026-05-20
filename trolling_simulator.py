@@ -42,25 +42,26 @@ st.info(
 
 paypal_url = "https://www.paypal.me/finc90"
 
-st.markdown(
-    f"""
-    <a href="{paypal_url}" target="_blank" rel="noopener noreferrer" style="
-        display: inline-block;
-        background: linear-gradient(135deg, #f0c75e, #ffd978);
-        color: #12384f;
-        padding: 0.85rem 1.15rem;
-        border-radius: 12px;
-        text-decoration: none;
-        font-weight: 800;
-        font-size: 1.05rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.18);
-        margin: 0.4rem 0 1rem 0;
-    ">
-        ⛽ Aiutami ad andare a pesca: contribuisci alla benzina
-    </a>
-    """,
-    unsafe_allow_html=True,
-)
+
+#st.markdown(
+#    f"""
+#    <a href="{paypal_url}" target="_blank" rel="noopener noreferrer" style="
+#        display: inline-block;
+#        background: linear-gradient(135deg, #f0c75e, #ffd978);
+#        color: #12384f;
+#        padding: 0.85rem 1.15rem;
+#        border-radius: 12px;
+#        text-decoration: none;
+#        font-weight: 800;
+#        font-size: 1.05rem;
+#        box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+#        margin: 0.4rem 0 1rem 0;
+#    ">
+#        Aiutami ad andare a pesca: contribuisci alla benzina ⛽
+#    </a>
+#    """,
+#    unsafe_allow_html=True,
+#)
 
 st.caption("© 2026 Federico Incardona. Tutti i diritti riservati.")
 
