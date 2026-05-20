@@ -295,7 +295,8 @@ components.html(
             Da smartphone: usa i pulsanti sotto la simulazione.<br>
             Corrente: valori negativi indicano corrente opposta al verso impostato.<br>
             Direzione corrente: da -90° a +90° rispetto alla rotta della barca.<br>
-            La posizione laterale della base canna è limitata tra -5 m e +5 m.
+            La posizione laterale della base canna è limitata tra -5 m e +5 m.<br>
+            La scia motore cresce interpolando: 0 kn → 0 m, 3 kn → 5 m, 6 kn → 15 m, 12 kn → 30 m.
         </p>
 
         <h3>Canne</h3>
@@ -711,6 +712,37 @@ function currentVector(appConfig, boatHeading) {
     return mul(currentDirection, speedMs);
 }
 
+function interpolatedWakeLength(speedKnots) {
+    const points = [
+        [0.0, 0.0],
+        [3.0, 5.0],
+        [6.0, 15.0],
+        [12.0, 30.0],
+    ];
+
+    if (speedKnots <= points[0][0]) {
+        return points[0][1];
+    }
+
+    if (speedKnots >= points[points.length - 1][0]) {
+        return points[points.length - 1][1];
+    }
+
+    for (let i = 0; i < points.length - 1; i++) {
+        const x0 = points[i][0];
+        const y0 = points[i][1];
+        const x1 = points[i + 1][0];
+        const y1 = points[i + 1][1];
+
+        if (speedKnots >= x0 && speedKnots <= x1) {
+            const t = (speedKnots - x0) / (x1 - x0);
+            return y0 + t * (y1 - y0);
+        }
+    }
+
+    return 0.0;
+}
+
 class Boat {
     constructor(initialSpeedKnots) {
         this.position = vec(0, 0);
@@ -1095,6 +1127,119 @@ function drawGrid(camera) {
     }
 }
 
+function drawEngineWake(camera) {
+    if (!boat) return;
+
+    const wakeLengthM = interpolatedWakeLength(boat.targetSpeedKnots);
+
+    if (wakeLengthM <= 0.05) {
+        return;
+    }
+
+    const targetRatio = clamp(
+        boat.targetSpeedKnots / MAX_TROLLING_SPEED_KNOTS,
+        0.0,
+        1.0
+    );
+
+    const realSpeedKnots = length(boat.waterVelocity) * MS_TO_KNOT;
+    const realRatio = clamp(
+        realSpeedKnots / MAX_TROLLING_SPEED_KNOTS,
+        0.0,
+        1.0
+    );
+
+    const heading = boat.heading();
+    const right = boat.right();
+
+    const sternCenter = sub(
+        boat.position,
+        mul(heading, BOAT_LENGTH_M / 2 + 0.35)
+    );
+
+    const wakeWidthStartM = 0.20 + 0.30 * realRatio;
+    const wakeWidthEndM = 0.80 + 2.80 * realRatio;
+
+    const layers = 8;
+
+    ctx.save();
+
+    for (let layer = 0; layer < layers; layer++) {
+        const t0 = layer / layers;
+        const t1 = (layer + 1) / layers;
+
+        const p0 = sub(sternCenter, mul(heading, wakeLengthM * t0));
+        const p1 = sub(sternCenter, mul(heading, wakeLengthM * t1));
+
+        const width0 = wakeWidthStartM + (wakeWidthEndM - wakeWidthStartM) * t0;
+        const width1 = wakeWidthStartM + (wakeWidthEndM - wakeWidthStartM) * t1;
+
+        const left0 = sub(p0, mul(right, width0 / 2));
+        const right0 = add(p0, mul(right, width0 / 2));
+        const right1 = add(p1, mul(right, width1 / 2));
+        const left1 = sub(p1, mul(right, width1 / 2));
+
+        const points = [
+            worldToScreen(left0, camera),
+            worldToScreen(right0, camera),
+            worldToScreen(right1, camera),
+            worldToScreen(left1, camera),
+        ];
+
+        if (points.some(p => p === null)) {
+            continue;
+        }
+
+        const alpha = (0.23 * realRatio) * (1.0 - t0);
+
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        ctx.lineTo(points[1].x, points[1].y);
+        ctx.lineTo(points[2].x, points[2].y);
+        ctx.lineTo(points[3].x, points[3].y);
+        ctx.closePath();
+
+        ctx.fillStyle = `rgba(215, 245, 255, ${alpha})`;
+        ctx.fill();
+    }
+
+    const foamLines = 5;
+
+    for (let i = 0; i < foamLines; i++) {
+        const side = i % 2 === 0 ? -1 : 1;
+        const offsetFactor = 0.18 + 0.13 * i;
+
+        const start = add(
+            sternCenter,
+            mul(right, side * wakeWidthStartM * offsetFactor)
+        );
+
+        const end = add(
+            sub(
+                sternCenter,
+                mul(heading, wakeLengthM * (0.45 + 0.09 * i))
+            ),
+            mul(right, side * wakeWidthEndM * offsetFactor)
+        );
+
+        const startScreen = worldToScreen(start, camera);
+        const endScreen = worldToScreen(end, camera);
+
+        if (!startScreen || !endScreen) {
+            continue;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(startScreen.x, startScreen.y);
+        ctx.lineTo(endScreen.x, endScreen.y);
+        ctx.strokeStyle = `rgba(235, 250, 255, ${0.45 * realRatio})`;
+        ctx.lineWidth = Math.max(1, 1 + 2.5 * targetRatio);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
 function drawPolygon(points, fill, stroke, width = 2) {
     if (points.some(p => p === null)) return;
 
@@ -1247,6 +1392,7 @@ function drawHud() {
     const waterSpeedKnots = length(boat.waterVelocity) * MS_TO_KNOT;
     const groundSpeedKnots = length(boat.velocity) * MS_TO_KNOT;
     const routeAngleDeg = normalizeAngleDeg(boat.headingAngle * 180.0 / Math.PI);
+    const wakeLengthM = interpolatedWakeLength(boat.targetSpeedKnots);
 
     const smallScreen = WIDTH < 600;
 
@@ -1255,12 +1401,14 @@ function drawHud() {
             `Target: ${boat.targetSpeedKnots.toFixed(2)} kn`,
             `Reale: ${groundSpeedKnots.toFixed(2)} kn`,
             `Rotta: ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
+            `Scia: ${wakeLengthM.toFixed(1)} m`,
             `Corr.: ${config.currentSpeedKnots >= 0 ? "+" : ""}${config.currentSpeedKnots.toFixed(2)} kn @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
         ]
         : [
             `Velocità target: ${boat.targetSpeedKnots.toFixed(2)} nodi`,
             `Velocità reale: ${groundSpeedKnots.toFixed(2)} nodi`,
             `Rotta barca: ${routeAngleDeg >= 0 ? "+" : ""}${routeAngleDeg.toFixed(1)}°`,
+            `Lunghezza scia: ${wakeLengthM.toFixed(1)} m`,
             `Corrente: ${config.currentSpeedKnots >= 0 ? "+" : ""}${config.currentSpeedKnots.toFixed(2)} nodi @ ${config.currentDirectionDeg >= 0 ? "+" : ""}${config.currentDirectionDeg.toFixed(0)}°`,
         ];
 
@@ -1366,6 +1514,7 @@ function animate(now) {
         ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
         drawGrid(camera);
+        drawEngineWake(camera);
 
         lines.forEach((line, i) => {
             drawLine(line, camera, colors[i % colors.length]);
