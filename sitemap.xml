@@ -5,23 +5,58 @@
 
   <url>
     <loc>https://fincardona.github.io/fishing_simulators/</loc>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://fincardona.github.io/fishing_simulators/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://fincardona.github.io/fishing_simulators/en/"/>
-    <xhtml:link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/"/>
+    <xhtml:link
+      rel="alternate"
+      hreflang="x-default"
+      href="https://fincardona.github.io/fishing_simulators/" />
+    <xhtml:link
+      rel="alternate"
+      hreflang="en"
+      href="https://fincardona.github.io/fishing_simulators/en/" />
+    <xhtml:link
+      rel="alternate"
+      hreflang="it"
+      href="https://fincardona.github.io/fishing_simulators/it/" />
   </url>
 
   <url>
     <loc>https://fincardona.github.io/fishing_simulators/en/</loc>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://fincardona.github.io/fishing_simulators/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://fincardona.github.io/fishing_simulators/en/"/>
-    <xhtml:link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/"/>
+    <xhtml:link
+      rel="alternate"
+      hreflang="x-default"
+      href="https://fincardona.github.io/fishing_simulators/" />
+    <xhtml:link
+      rel="alternate"
+      hreflang="en"
+      href="https://fincardona.github.io/fishing_simulators/en/" />
+    <xhtml:link
+      rel="alternate"
+      hreflang="it"
+      href="https://fincardona.github.io/fishing_simulators/it/" />
   </url>
 
   <url>
     <loc>https://fincardona.github.io/fishing_simulators/it/</loc>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://fincardona.github.io/fishing_simulators/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://fincardona.github.io/fishing_simulators/en/"/>
-    <xhtml:link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/"/>
+    <xhtml:link
+      rel="alternate"
+      hreflang="x-default"
+      href="https://fincardona.github.io/fishing_simulators/" />
+    <xhtml:link
+      rel="alternate"
+      hreflang="en"
+      href="https://fincardona.github.io/fishing_simulators/en/" />
+    <xhtml:link
+      rel="alternate"
+      hreflang="it"
+      href="https://fincardona.github.io/fishing_simulators/it/" />
+  </url>
+
+  <url>
+    <loc>https://fincardona.github.io/fishing_simulators/privacy.html</loc>
+  </url>
+
+  <url>
+    <loc>https://fincardona.github.io/fishing_simulators/cookie.html</loc>
   </url>
 
 </urlset>
