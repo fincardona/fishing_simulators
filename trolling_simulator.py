@@ -17,12 +17,49 @@ st.set_page_config(
 
 st.title("🎣 Simulatore assetto da traina")
 
-st.write(
+st.markdown(
     """
-    Versione web del simulatore: funziona da PC e da smartphone.
-    Da PC puoi usare le frecce della tastiera.  
-    Da smartphone usa i pulsanti sotto la simulazione.
+    **Simulatore interattivo per visualizzare l'assetto delle lenze durante una battuta di pesca a traina.**
+
+    Questo strumento permette di configurare il numero di canne, la lunghezza delle lenze filate,
+    il diametro del filo, il peso dell'esca, la posizione delle canne sulla barca, la velocità di traina
+    e l'effetto della corrente marina.
+
+    La simulazione mostra in tempo reale come le lenze si dispongono in acqua mentre la barca procede
+    o cambia rotta. Può essere utile per capire meglio la separazione tra le esche, il rischio di incrocio
+    delle lenze, l'effetto delle virate e il comportamento generale dell'assetto durante la traina.
+
+    Il modello è pensato come supporto pratico e visuale per la pesca a traina: non sostituisce una simulazione
+    idrodinamica completa, ma tiene conto di velocità della barca, corrente, resistenza della lenza,
+    resistenza dell'esca, massa del terminale e disposizione delle canne.
     """
+)
+
+st.info(
+    "Da PC puoi usare le frecce della tastiera. "
+    "Da smartphone usa i pulsanti sotto la simulazione."
+)
+
+paypal_url = "https://www.paypal.me/finc90"
+
+st.markdown(
+    f"""
+    <a href="{paypal_url}" target="_blank" rel="noopener noreferrer" style="
+        display: inline-block;
+        background: linear-gradient(135deg, #f0c75e, #ffd978);
+        color: #12384f;
+        padding: 0.85rem 1.15rem;
+        border-radius: 12px;
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 1.05rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+        margin: 0.4rem 0 1rem 0;
+    ">
+        ⛽ Aiutami ad andare a pesca: contribuisci alla benzina
+    </a>
+    """,
+    unsafe_allow_html=True,
 )
 
 st.caption("© 2026 Federico Incardona. Tutti i diritti riservati.")
@@ -291,12 +328,11 @@ components.html(
         <button type="button" onclick="resetToDefaults()">Reset valori default</button>
 
         <p class="hint">
-            Da PC: frecce della tastiera.<br>
+            Da PC: puoi usare le frecce della tastiera.<br>
             Da smartphone: usa i pulsanti sotto la simulazione.<br>
             Corrente: valori negativi indicano corrente opposta al verso impostato.<br>
             Direzione corrente: da -90° a +90° rispetto alla rotta della barca.<br>
             La posizione laterale della base canna è limitata tra -5 m e +5 m.<br>
-            La scia motore cresce interpolando: 0 kn → 0 m, 3 kn → 5 m, 6 kn → 15 m, 12 kn → 30 m.
         </p>
 
         <h3>Canne</h3>
