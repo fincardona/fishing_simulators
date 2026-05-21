@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Physics model of the trolling spread simulator</title>
+  <meta name="description" content="Explanation of the simplified physics model used by the trolling spread simulator: line segments, drag force, lure mass, sea current, boat speed and wake length.">
+  <link rel="canonical" href="https://fincardona.github.io/fishing_simulators/en/physics.html">
+  <link rel="alternate" hreflang="en" href="https://fincardona.github.io/fishing_simulators/en/physics.html">
+  <link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/fisica.html">
+  <link rel="alternate" hreflang="x-default" href="https://fincardona.github.io/fishing_simulators/en/physics.html">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+
+<body>
+  <main class="legal-page">
+    <p><a href="./">← Back to the simulator</a></p>
+
+    <h1>Physics model of the trolling spread simulator</h1>
+
+    <p>
+      This page describes the simplified physical model used by the trolling spread simulator.
+      The goal is not to reproduce a full computational fluid dynamics simulation, but to provide
+      a useful visual model of how fishing lines behave behind a boat while trolling.
+    </p>
+
+    <h2>1. Top-down two-dimensional model</h2>
+
+    <p>
+      The simulator uses a top-down view. The boat, rods and fishing lines move in a horizontal
+      two-dimensional plane. This means that the model focuses on the lateral spread of the lines,
+      line crossing, turns and the effect of sea current.
+    </p>
+
+    <p>
+      The current version does not compute the real three-dimensional diving depth of the lure.
+      The user can enter a nominal trolling depth, but in the present model this parameter is used
+      only as a simplified modifier of the effective inertia of the line.
+    </p>
+
+    <h2>2. Boat motion</h2>
+
+    <p>
+      The boat has a heading vector and a target trolling speed expressed in knots. Internally,
+      speed is converted from knots to metres per second.
+    </p>
+
+    <div class="formula">
+      1\ \mathrm{knot} = 0.514444\ \mathrm{m\,s^{-1}}
+    </div>
+
+    <p>
+      The boat does not instantly jump to the selected target speed. Instead, its water-relative
+      velocity gradually approaches the desired velocity. This makes acceleration and deceleration
+      smoother and gives the lines a more natural transient behavior.
+    </p>
+
+    <div class="formula">
+      \mathbf{v}_{boat,water}^{\,new}
+      =
+      \mathbf{v}_{boat,water}
+      +
+      \left(
+      \mathbf{v}_{target}
+      -
+      \mathbf{v}_{boat,water}
+      \right)
+      k\,\Delta t
+    </div>
+
+    <p>
+      where <code>k</code> is a response coefficient and <code>Δt</code> is the simulation time step.
+    </p>
+
+    <p>
+      The boat velocity over ground is then obtained by adding the current velocity:
+    </p>
+
+    <div class="formula">
+      \mathbf{v}_{boat,ground}
+      =
+      \mathbf{v}_{boat,water}
+      +
+      \mathbf{v}_{current}
+    </div>
+
+    <h2>3. Sea current</h2>
+
+    <p>
+      Sea current is modeled as a velocity vector of the water. The user can configure its intensity
+      in knots and its direction relative to the current boat heading.
+    </p>
+
+    <div class="formula">
+      \mathbf{v}_{current}
+      =
+      V_{current}
+      \left(
+      \cos\theta,\ \sin\theta
+      \right)
+    </div>
+
+    <p>
+      A following current reduces the relative speed between the line and the water. A head current
+      increases it. A side current pushes the whole line spread sideways.
+    </p>
+
+    <h2>4. Line as a chain of segments</h2>
+
+    <p>
+      Each fishing line is modeled as a chain of connected points. If the user sets a line length
+      <code>L</code> and the simulation uses <code>N</code> segments, each segment has rest length:
+    </p>
+
+    <div class="formula">
+      l_0 = \frac{L}{N}
+    </div>
+
+    <p>
+      The first point of the line is attached to the rod tip. The other points are free to move,
+      but distance constraints are repeatedly applied to keep neighbouring points separated by
+      approximately the rest length <code>l₀</code>. This approximates an almost inextensible line.
+    </p>
+
+    <h2>5. Rod position and rod angle</h2>
+
+    <p>
+      Each rod has a lateral base position and an angle relative to the stern direction. The rod tip
+      becomes the anchor point of the fishing line. This makes it possible to simulate side rods,
+      central rods and asymmetric trolling spreads.
+    </p>
+
+    <p>
+      Conceptually, the rod direction is calculated from a backward vector and a right-side vector:
+    </p>
+
+    <div class="formula">
+      \mathbf{d}_{rod}
+      =
+      \mathbf{d}_{back}
+      \cos\alpha
+      +
+      \mathbf{d}_{right}
+      \sin\alpha
+    </div>
+
+    <p>
+      The rod tip is then:
+    </p>
+
+    <div class="formula">
+      \mathbf{x}_{tip}
+      =
+      \mathbf{x}_{base}
+      +
+      L_{rod}\,\mathbf{d}_{rod}
+    </div>
+
+    <h2>6. Hydrodynamic drag</h2>
+
+    <p>
+      The main physical force used by the model is hydrodynamic drag. For each line point, the
+      relevant velocity is the velocity relative to the water:
+    </p>
+
+    <div class="formula">
+      \mathbf{v}_{rel}
+      =
+      \mathbf{v}_{point}
+      -
+      \mathbf{v}_{current}
+    </div>
+
+    <p>
+      The drag magnitude is modeled with the usual quadratic drag relation:
+    </p>
+
+    <div class="formula">
+      F_D
+      =
+      \frac{1}{2}
+      \rho
+      C_D
+      A
+      |\mathbf{v}_{rel}|^2
+    </div>
+
+    <p>
+      where:
+    </p>
+
+    <ul>
+      <li><code>ρ</code> is the density of seawater;</li>
+      <li><code>C<sub>D</sub></code> is a drag coefficient;</li>
+      <li><code>A</code> is an approximate reference area;</li>
+      <li><code>|v<sub>rel</sub>|</code> is the relative speed between line and water.</li>
+    </ul>
+
+    <p>
+      The drag force acts in the opposite direction of the relative velocity:
+    </p>
+
+    <div class="formula">
+      \mathbf{F}_D
+      =
+      -
+      F_D
+      \frac{\mathbf{v}_{rel}}{|\mathbf{v}_{rel}|}
+    </div>
+
+    <h2>7. Effect of line diameter</h2>
+
+    <p>
+      The line diameter affects drag because it changes the approximate area exposed to the water.
+      For a line segment, the simulator uses:
+    </p>
+
+    <div class="formula">
+      A_{line}
+      \approx
+      d_{line}\,l_0
+    </div>
+
+    <p>
+      A thicker line therefore creates more resistance and tends to lag more behind the boat,
+      especially during turns.
+    </p>
+
+    <h2>8. Lure mass and lure drag</h2>
+
+    <p>
+      The lure at the end of the line has two effects in the simulation:
+    </p>
+
+    <ul>
+      <li>it adds extra hydrodynamic drag at the last point of the line;</li>
+      <li>it adds mass, making the final point more inertial.</li>
+    </ul>
+
+    <p>
+      The lure mass is converted from grams to kilograms:
+    </p>
+
+    <div class="formula">
+      m_{lure}
+      =
+      \frac{m_{lure,g}}{1000}
+    </div>
+
+    <p>
+      The effective mass of the last point is:
+    </p>
+
+    <div class="formula">
+      m_{eff,last}
+      =
+      m_{line}
+      \left(
+      1 + \frac{D}{25}
+      \right)
+      +
+      m_{lure}
+    </div>
+
+    <p>
+      where <code>D</code> is the nominal trolling depth entered by the user. In this simplified
+      top-down model, lure weight does not determine vertical depth; it mainly affects how quickly
+      the lure changes direction.
+    </p>
+
+    <h2>9. Time integration</h2>
+
+    <p>
+      At each frame, the simulator computes the force on each point, converts it to acceleration,
+      updates velocity and then updates position:
+    </p>
+
+    <div class="formula">
+      \mathbf{a}
+      =
+      \frac{\mathbf{F}}{m}
+    </div>
+
+    <div class="formula">
+      \mathbf{v}^{new}
+      =
+      \mathbf{v}
+      +
+      \mathbf{a}\,\Delta t
+    </div>
+
+    <div class="formula">
+      \mathbf{x}^{new}
+      =
+      \mathbf{x}
+      +
+      \mathbf{v}^{new}\,\Delta t
+    </div>
+
+    <p>
+      A damping factor is applied to avoid excessive oscillations and keep the simulation visually stable.
+    </p>
+
+    <h2>10. Engine wake</h2>
+
+    <p>
+      The engine wake is a visual aid. Its length is not obtained from a full hydrodynamic model.
+      Instead, it is interpolated from a few reference points chosen to give a plausible visual scale:
+    </p>
+
+    <div class="formula">
+      (0\ \mathrm{kn}, 0\ \mathrm{m}),\quad
+      (3\ \mathrm{kn}, 5\ \mathrm{m}),\quad
+      (6\ \mathrm{kn}, 15\ \mathrm{m}),\quad
+      (12\ \mathrm{kn}, 30\ \mathrm{m})
+    </div>
+
+    <p>
+      Between these points, the wake length is computed by piecewise linear interpolation.
+    </p>
+
+    <h2>11. Limitations</h2>
+
+    <p>
+      The model is intentionally simplified. It does not include rod bending, waves, wind,
+      propeller turbulence, three-dimensional lure diving, seabed interaction or exact lure hydrodynamics.
+      It should be understood as a practical visual simulator, not as a certified engineering or
+      navigation tool.
+    </p>
+
+    <p class="back-link">
+      <a href="./">← Back to the simulator</a>
+    </p>
+  </main>
+</body>
+</html>

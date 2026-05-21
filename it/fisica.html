@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Modello fisico del simulatore assetto da traina</title>
+  <meta name="description" content="Spiegazione del modello fisico semplificato usato dal simulatore assetto da traina: segmenti della lenza, forza di drag, massa dell'esca, corrente marina, velocità della barca e scia.">
+  <link rel="canonical" href="https://fincardona.github.io/fishing_simulators/it/fisica.html">
+  <link rel="alternate" hreflang="en" href="https://fincardona.github.io/fishing_simulators/en/physics.html">
+  <link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/fisica.html">
+  <link rel="alternate" hreflang="x-default" href="https://fincardona.github.io/fishing_simulators/en/physics.html">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+
+<body>
+  <main class="legal-page">
+    <p><a href="./">← Torna al simulatore</a></p>
+
+    <h1>Modello fisico del simulatore assetto da traina</h1>
+
+    <p>
+      Questa pagina descrive il modello fisico semplificato usato dal simulatore assetto da traina.
+      Lo scopo non è riprodurre una simulazione fluidodinamica completa, ma fornire una rappresentazione
+      visuale utile del comportamento delle lenze dietro una barca in traina.
+    </p>
+
+    <h2>1. Modello bidimensionale dall’alto</h2>
+
+    <p>
+      Il simulatore usa una vista dall’alto. Barca, canne e lenze si muovono in un piano orizzontale
+      bidimensionale. Il modello si concentra quindi sull’apertura laterale delle lenze, sugli incroci,
+      sulle virate e sull’effetto della corrente marina.
+    </p>
+
+    <p>
+      La versione attuale non calcola la profondità reale tridimensionale dell’esca. La profondità
+      nominale inserita dall’utente viene usata come parametro semplificato che modifica l’inerzia
+      efficace della lenza.
+    </p>
+
+    <h2>2. Movimento della barca</h2>
+
+    <p>
+      La barca ha un vettore rotta e una velocità target di traina espressa in nodi. Internamente,
+      la velocità viene convertita da nodi a metri al secondo.
+    </p>
+
+    <div class="formula">
+      1\ \mathrm{nodo} = 0.514444\ \mathrm{m\,s^{-1}}
+    </div>
+
+    <p>
+      La velocità reale della barca non viene portata istantaneamente alla velocità target.
+      Il modello la fa evolvere gradualmente verso la velocità desiderata, rendendo più naturale
+      il comportamento delle lenze durante accelerazioni, rallentamenti e cambi di rotta.
+    </p>
+
+    <div class="formula">
+      \mathbf{v}_{barca,acqua}^{\,nuova}
+      =
+      \mathbf{v}_{barca,acqua}
+      +
+      \left(
+      \mathbf{v}_{target}
+      -
+      \mathbf{v}_{barca,acqua}
+      \right)
+      k\,\Delta t
+    </div>
+
+    <p>
+      dove <code>k</code> è un coefficiente di risposta e <code>Δt</code> è il passo temporale
+      della simulazione.
+    </p>
+
+    <p>
+      La velocità della barca rispetto al fondale viene poi ottenuta sommando la corrente:
+    </p>
+
+    <div class="formula">
+      \mathbf{v}_{barca,fondale}
+      =
+      \mathbf{v}_{barca,acqua}
+      +
+      \mathbf{v}_{corrente}
+    </div>
+
+    <h2>3. Corrente marina</h2>
+
+    <p>
+      La corrente marina è modellata come un vettore velocità dell’acqua. L’utente può impostarne
+      intensità in nodi e direzione rispetto alla rotta della barca.
+    </p>
+
+    <div class="formula">
+      \mathbf{v}_{corrente}
+      =
+      V_{corrente}
+      \left(
+      \cos\theta,\ \sin\theta
+      \right)
+    </div>
+
+    <p>
+      Una corrente a favore riduce la velocità relativa tra lenza e acqua. Una corrente contraria
+      la aumenta. Una corrente laterale sposta progressivamente l’assetto delle lenze di lato.
+    </p>
+
+    <h2>4. Lenza come catena di segmenti</h2>
+
+    <p>
+      Ogni lenza è modellata come una catena di punti collegati. Se l’utente imposta una lunghezza
+      totale <code>L</code> e il simulatore usa <code>N</code> segmenti, ogni segmento ha lunghezza
+      a riposo:
+    </p>
+
+    <div class="formula">
+      l_0 = \frac{L}{N}
+    </div>
+
+    <p>
+      Il primo punto della lenza è fissato alla punta della canna. Gli altri punti sono liberi
+      di muoversi, ma vengono applicati vincoli di distanza tra punti vicini per mantenere
+      la lenza quasi inestensibile.
+    </p>
+
+    <h2>5. Posizione e angolo delle canne</h2>
+
+    <p>
+      Ogni canna ha una posizione laterale di base e un angolo rispetto alla direzione di poppa.
+      La punta della canna diventa il punto di ancoraggio della lenza. Questo permette di simulare
+      canne laterali, canne centrali e assetti asimmetrici.
+    </p>
+
+    <p>
+      In modo concettuale, la direzione della canna è calcolata combinando un vettore all’indietro
+      e un vettore laterale destro:
+    </p>
+
+    <div class="formula">
+      \mathbf{d}_{canna}
+      =
+      \mathbf{d}_{indietro}
+      \cos\alpha
+      +
+      \mathbf{d}_{destra}
+      \sin\alpha
+    </div>
+
+    <p>
+      La punta della canna è quindi:
+    </p>
+
+    <div class="formula">
+      \mathbf{x}_{punta}
+      =
+      \mathbf{x}_{base}
+      +
+      L_{canna}\,\mathbf{d}_{canna}
+    </div>
+
+    <h2>6. Resistenza idrodinamica</h2>
+
+    <p>
+      La forza fisica principale del modello è la resistenza idrodinamica. Per ogni punto della
+      lenza, la velocità rilevante è quella relativa rispetto all’acqua:
+    </p>
+
+    <div class="formula">
+      \mathbf{v}_{rel}
+      =
+      \mathbf{v}_{punto}
+      -
+      \mathbf{v}_{corrente}
+    </div>
+
+    <p>
+      Il modulo della forza di drag viene modellato con la classica legge quadratica:
+    </p>
+
+    <div class="formula">
+      F_D
+      =
+      \frac{1}{2}
+      \rho
+      C_D
+      A
+      |\mathbf{v}_{rel}|^2
+    </div>
+
+    <p>
+      dove:
+    </p>
+
+    <ul>
+      <li><code>ρ</code> è la densità dell’acqua di mare;</li>
+      <li><code>C<sub>D</sub></code> è il coefficiente di resistenza;</li>
+      <li><code>A</code> è un’area di riferimento approssimata;</li>
+      <li><code>|v<sub>rel</sub>|</code> è la velocità relativa tra lenza e acqua.</li>
+    </ul>
+
+    <p>
+      La forza di drag agisce in direzione opposta alla velocità relativa:
+    </p>
+
+    <div class="formula">
+      \mathbf{F}_D
+      =
+      -
+      F_D
+      \frac{\mathbf{v}_{rel}}{|\mathbf{v}_{rel}|}
+    </div>
+
+    <h2>7. Effetto del diametro della lenza</h2>
+
+    <p>
+      Il diametro della lenza incide sulla resistenza perché modifica l’area approssimata esposta
+      all’acqua. Per un segmento di lenza, il simulatore usa:
+    </p>
+
+    <div class="formula">
+      A_{lenza}
+      \approx
+      d_{lenza}\,l_0
+    </div>
+
+    <p>
+      Una lenza più spessa genera quindi più resistenza e tende a rimanere più arretrata,
+      soprattutto durante le virate.
+    </p>
+
+    <h2>8. Massa e resistenza dell’esca</h2>
+
+    <p>
+      L’esca alla fine della lenza ha due effetti nel modello:
+    </p>
+
+    <ul>
+      <li>aggiunge una resistenza idrodinamica extra sull’ultimo punto della lenza;</li>
+      <li>aggiunge massa, rendendo più inerziale il terminale.</li>
+    </ul>
+
+    <p>
+      La massa dell’esca viene convertita da grammi a chilogrammi:
+    </p>
+
+    <div class="formula">
+      m_{esca}
+      =
+      \frac{m_{esca,g}}{1000}
+    </div>
+
+    <p>
+      La massa efficace dell’ultimo punto è:
+    </p>
+
+    <div class="formula">
+      m_{eff,ultimo}
+      =
+      m_{lenza}
+      \left(
+      1 + \frac{D}{25}
+      \right)
+      +
+      m_{esca}
+    </div>
+
+    <p>
+      dove <code>D</code> è la profondità nominale inserita dall’utente. In questo modello dall’alto,
+      il peso dell’esca non determina la profondità verticale: incide soprattutto sulla rapidità
+      con cui l’esca cambia direzione.
+    </p>
+
+    <h2>9. Integrazione temporale</h2>
+
+    <p>
+      A ogni fotogramma, il simulatore calcola la forza su ogni punto, la converte in accelerazione,
+      aggiorna la velocità e poi la posizione:
+    </p>
+
+    <div class="formula">
+      \mathbf{a}
+      =
+      \frac{\mathbf{F}}{m}
+    </div>
+
+    <div class="formula">
+      \mathbf{v}^{nuova}
+      =
+      \mathbf{v}
+      +
+      \mathbf{a}\,\Delta t
+    </div>
+
+    <div class="formula">
+      \mathbf{x}^{nuova}
+      =
+      \mathbf{x}
+      +
+      \mathbf{v}^{nuova}\,\Delta t
+    </div>
+
+    <p>
+      Viene inoltre applicato uno smorzamento numerico per evitare oscillazioni eccessive e mantenere
+      la simulazione stabile.
+    </p>
+
+    <h2>10. Scia del motore</h2>
+
+    <p>
+      La scia del motore è un elemento visivo. La sua lunghezza non deriva da un modello
+      idrodinamico completo, ma viene interpolata da alcuni punti di riferimento scelti per ottenere
+      una scala visiva plausibile:
+    </p>
+
+    <div class="formula">
+      (0\ \mathrm{nodi}, 0\ \mathrm{m}),\quad
+      (3\ \mathrm{nodi}, 5\ \mathrm{m}),\quad
+      (6\ \mathrm{nodi}, 15\ \mathrm{m}),\quad
+      (12\ \mathrm{nodi}, 30\ \mathrm{m})
+    </div>
+
+    <p>
+      Tra questi punti, la lunghezza della scia viene calcolata con interpolazione lineare a tratti.
+    </p>
+
+    <h2>11. Limiti del modello</h2>
+
+    <p>
+      Il modello è volutamente semplificato. Non include flessione delle canne, onde, vento,
+      turbolenza reale dell’elica, profondità tridimensionale dell’esca, interazione con il fondale
+      o idrodinamica specifica delle singole esche. Va considerato come uno strumento visuale pratico,
+      non come uno strumento certificato di ingegneria o navigazione.
+    </p>
+
+    <p class="back-link">
+      <a href="./">← Torna al simulatore</a>
+    </p>
+  </main>
+</body>
+</html>

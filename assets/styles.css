@@ -1,368 +1,480 @@
 :root {
-    --sea-dark: #0f3d5a;
-    --sea-mid: #154f73;
-    --panel: #12384f;
-    --gold: #f0c75e;
-    --gold-light: #ffd978;
-    --text: #ffffff;
-    --muted: rgba(255,255,255,0.78);
-  }
-  
-  * {
-    box-sizing: border-box;
-  }
-  
-  html,
-  body {
-    margin: 0;
-    padding: 0;
-    font-family: Arial, system-ui, sans-serif;
-    background: var(--sea-dark);
-    color: var(--text);
-  }
-  
+  --sea-dark: #0f3d5a;
+  --sea-mid: #154f73;
+  --panel: #12384f;
+  --gold: #f0c75e;
+  --gold-light: #ffd978;
+  --text: #ffffff;
+  --muted: rgba(255, 255, 255, 0.78);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, system-ui, sans-serif;
+  background: var(--sea-dark);
+  color: var(--text);
+}
+
+.page-header {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 18px 14px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.language-link {
+  color: white;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-weight: 700;
+}
+
+.language-link:hover {
+  background: rgba(255, 255, 255, 0.20);
+}
+
+h1 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1.08;
+  margin: 0 0 14px;
+}
+
+.lead {
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: white;
+}
+
+.page-header p {
+  max-width: 980px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.button {
+  display: inline-block;
+  border-radius: 12px;
+  padding: 0.85rem 1.15rem;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.primary {
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: #12384f;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  margin: 0.4rem 0 0.8rem;
+}
+
+.secondary {
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+/* Pulsanti lingua simmetrici nella landing page */
+.language-choice {
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: #12384f;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  margin: 0.4rem 0 0.8rem;
+  min-width: 150px;
+  text-align: center;
+}
+
+.language-choice:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+/* Bottone supporto / PayPal */
+.fuel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: linear-gradient(135deg, var(--gold), var(--gold-light));
+  color: #12384f;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.22);
+  margin: 0.6rem 0 0.25rem;
+  border-radius: 999px;
+  padding: 0.95rem 1.3rem;
+  font-weight: 900;
+  text-decoration: none;
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fuel:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.26);
+}
+
+.support-note {
+  margin-top: 0.35rem;
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.72);
+  max-width: 680px;
+}
+
+.note {
+  font-size: 0.95rem;
+}
+
+.deep-link {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(240, 199, 94, 0.10);
+  border: 1px solid rgba(240, 199, 94, 0.28);
+}
+
+.deep-link a {
+  color: var(--gold-light);
+  font-weight: 800;
+}
+
+.sim-wrapper {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 0 8px 24px;
+}
+
+.container {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 14px;
+  width: 100%;
+  height: 790px;
+  box-sizing: border-box;
+  padding: 8px;
+}
+
+.panel {
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 14px;
+  box-sizing: border-box;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel h3 {
+  margin-top: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 95px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+input,
+button {
+  border-radius: 7px;
+  border: none;
+  padding: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+button {
+  cursor: pointer;
+  background: var(--gold);
+  font-weight: bold;
+  margin-top: 8px;
+  width: 100%;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+button:hover {
+  background: var(--gold-light);
+}
+
+.rod-card {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.rod-card h4 {
+  margin: 0 0 8px 0;
+}
+
+.sim-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 4px;
+}
+
+canvas {
+  background: var(--sea-mid);
+  border-radius: 12px;
+  width: 100%;
+  height: 620px;
+  flex: 0 0 620px;
+  display: block;
+  touch-action: pan-y;
+  box-sizing: border-box;
+}
+
+.touch-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background: var(--panel);
+  border-radius: 12px;
+  padding: 10px;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+}
+
+.touch-controls button {
+  min-height: 52px;
+  font-size: 18px;
+  margin-top: 0;
+}
+
+.touch-controls .active {
+  background: #fff1a8;
+  transform: scale(0.98);
+}
+
+.hint {
+  font-size: 13px;
+  opacity: 0.85;
+  line-height: 1.35;
+}
+
+.copyright {
+  margin-top: 14px;
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.copyright a {
+  color: var(--gold-light);
+  font-weight: 700;
+}
+
+/* Landing page */
+
+.landing-body {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: linear-gradient(135deg, #0f3d5a, #155f86);
+}
+
+.landing-card {
+  max-width: 900px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 22px;
+  padding: 34px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.eyebrow {
+  color: var(--gold-light);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.language-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 26px 0;
+}
+
+footer {
+  margin-top: 26px;
+  opacity: 0.72;
+  font-size: 0.9rem;
+}
+
+footer a {
+  color: var(--gold-light);
+  font-weight: 700;
+}
+
+/* Legal pages and physics pages */
+
+.legal-page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 42px 20px 64px;
+  line-height: 1.65;
+}
+
+.legal-page h1 {
+  margin-bottom: 12px;
+}
+
+.legal-page h2 {
+  margin-top: 30px;
+  color: var(--gold-light);
+}
+
+.legal-page a {
+  color: var(--gold-light);
+  font-weight: 700;
+}
+
+.legal-page p,
+.legal-page li {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.formula {
+  overflow-x: auto;
+  margin: 18px 0;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-family: "Times New Roman", Georgia, serif;
+  font-size: 1.25rem;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.legal-page .formula code {
+  color: #ffffff;
+}
+
+.back-link {
+  margin-top: 34px;
+}
+
+/* Responsive layout */
+
+@media (max-width: 900px) {
   .page-header {
-    max-width: 1180px;
-    margin: 0 auto;
-    padding: 28px 18px 14px;
-  }
-  
-  .topbar {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 10px;
-  }
-  
-  .language-link {
-    color: white;
-    text-decoration: none;
-    background: rgba(255,255,255,0.12);
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 999px;
-    padding: 8px 12px;
-    font-weight: 700;
-  }
-  
-  .language-link:hover {
-    background: rgba(255,255,255,0.20);
-  }
-  
-  h1 {
-    font-size: clamp(2rem, 4vw, 3.2rem);
-    line-height: 1.08;
-    margin: 0 0 14px;
-  }
-  
-  .lead {
-    font-size: 1.18rem;
-    font-weight: 700;
-    color: white;
-  }
-  
-  .page-header p {
-    max-width: 980px;
-    line-height: 1.6;
-    color: var(--muted);
-  }
-  
-  .button {
-    display: inline-block;
-    border-radius: 12px;
-    padding: 0.85rem 1.15rem;
-    text-decoration: none;
-    font-weight: 800;
-  }
-  
-  .fuel,
-  .primary {
-    background: linear-gradient(135deg, var(--gold), var(--gold-light));
-    color: #12384f;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
-    margin: 0.4rem 0 0.8rem;
-  }
-  
-  .secondary {
-    background: rgba(255,255,255,0.14);
-    color: white;
-    border: 1px solid rgba(255,255,255,0.25);
-  }
-  
-  .note {
-    font-size: 0.95rem;
-  }
-  
-  .sim-wrapper {
-    max-width: 1500px;
-    margin: 0 auto;
-    padding: 0 8px 24px;
-  }
-  
-  .container {
-    display: grid;
-    grid-template-columns: 340px minmax(0, 1fr);
-    gap: 14px;
-    width: 100%;
-    height: 790px;
-    box-sizing: border-box;
-    padding: 8px;
-  }
-  
-  .panel {
-    background: var(--panel);
-    border-radius: 12px;
-    padding: 14px;
-    box-sizing: border-box;
-    height: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
-  
-  .panel h3 {
-    margin-top: 0;
-  }
-  
-  .row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 95px;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 14px;
-  }
-  
-  input,
-  button {
-    border-radius: 7px;
-    border: none;
-    padding: 6px;
-    font-size: 14px;
-    box-sizing: border-box;
-    max-width: 100%;
-  }
-  
-  button {
-    cursor: pointer;
-    background: var(--gold);
-    font-weight: bold;
-    margin-top: 8px;
-    width: 100%;
-    touch-action: manipulation;
-    user-select: none;
-  }
-  
-  button:hover {
-    background: var(--gold-light);
-  }
-  
-  .rod-card {
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 10px;
-    padding: 10px;
-    margin-bottom: 10px;
-    background: rgba(255,255,255,0.06);
-  }
-  
-  .rod-card h4 {
-    margin: 0 0 8px 0;
-  }
-  
-  .sim-area {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 0;
-    height: 100%;
-    overflow: hidden;
-    box-sizing: border-box;
-    padding: 4px;
-  }
-  
-  canvas {
-    background: var(--sea-mid);
-    border-radius: 12px;
-    width: 100%;
-    height: 620px;
-    flex: 0 0 620px;
-    display: block;
-    touch-action: pan-y;
-    box-sizing: border-box;
-  }
-  
-  .touch-controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    background: var(--panel);
-    border-radius: 12px;
-    padding: 10px;
-    box-sizing: border-box;
-    flex: 0 0 auto;
-  }
-  
-  .touch-controls button {
-    min-height: 52px;
-    font-size: 18px;
-    margin-top: 0;
-  }
-  
-  .touch-controls .active {
-    background: #fff1a8;
-    transform: scale(0.98);
-  }
-  
-  .hint {
-    font-size: 13px;
-    opacity: 0.85;
-    line-height: 1.35;
-  }
-  
-  .copyright {
-    margin-top: 14px;
-    font-size: 12px;
-    opacity: 0.65;
-  }
-  
-  /* Landing page */
-  .landing-body {
-    min-height: 100vh;
-    display: grid;
-    place-items: center;
-    padding: 18px;
-    background: linear-gradient(135deg, #0f3d5a, #155f86);
-  }
-  
-  .landing-card {
-    max-width: 900px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.18);
-    border-radius: 22px;
-    padding: 34px;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
-  }
-  
-  .eyebrow {
-    color: var(--gold-light);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 800;
-    font-size: 0.9rem;
-  }
-  
-  .language-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin: 26px 0;
-  }
-  
-  footer {
-    margin-top: 26px;
-    opacity: 0.72;
-    font-size: 0.9rem;
-  }
-  
-  @media (max-width: 900px) {
-    .page-header {
-      padding-top: 18px;
-    }
-  
-    .container {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      height: 790px;
-      padding: 6px;
-    }
-  
-    .panel {
-      height: 285px;
-      flex: 0 0 285px;
-    }
-  
-    .sim-area {
-      height: 487px;
-      flex: 0 0 487px;
-      padding: 4px;
-      gap: 6px;
-    }
-  
-    canvas {
-      height: 360px;
-      flex: 0 0 360px;
-    }
-  
-    .touch-controls {
-      gap: 6px;
-      padding: 7px;
-    }
-  
-    .touch-controls button {
-      min-height: 38px;
-      font-size: 14px;
-    }
-  }
-  
-  @media (max-width: 520px) {
-    body {
-      font-size: 14px;
-    }
-  
-    .container {
-      gap: 6px;
-      height: 790px;
-      padding: 6px;
-    }
-  
-    .panel {
-      height: 285px;
-      flex: 0 0 285px;
-      padding: 10px;
-    }
-  
-    .sim-area {
-      height: 487px;
-      flex: 0 0 487px;
-      gap: 6px;
-    }
-  
-    canvas {
-      height: 350px;
-      flex: 0 0 350px;
-    }
-  
-    .row {
-      grid-template-columns: minmax(0, 1fr) 88px;
-      font-size: 13px;
-    }
-  
-    .touch-controls {
-      gap: 6px;
-      padding: 7px;
-    }
-  
-    .touch-controls button {
-      min-height: 36px;
-      font-size: 13px;
-    }
+    padding-top: 18px;
   }
 
-  .legal-page {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 42px 20px 64px;
-    line-height: 1.65;
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    height: 790px;
+    padding: 6px;
   }
-  
-  .legal-page h1 {
-    margin-bottom: 12px;
+
+  .panel {
+    height: 285px;
+    flex: 0 0 285px;
   }
-  
-  .legal-page h2 {
-    margin-top: 30px;
+
+  .sim-area {
+    height: 487px;
+    flex: 0 0 487px;
+    padding: 4px;
+    gap: 6px;
   }
-  
-  .legal-page a {
-    color: #ffd978;
-    font-weight: 700;
+
+  canvas {
+    height: 360px;
+    flex: 0 0 360px;
   }
+
+  .touch-controls {
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .touch-controls button {
+    min-height: 38px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 520px) {
+  body {
+    font-size: 14px;
+  }
+
+  .container {
+    gap: 6px;
+    height: 790px;
+    padding: 6px;
+  }
+
+  .panel {
+    height: 285px;
+    flex: 0 0 285px;
+    padding: 10px;
+  }
+
+  .sim-area {
+    height: 487px;
+    flex: 0 0 487px;
+    gap: 6px;
+  }
+
+  canvas {
+    height: 350px;
+    flex: 0 0 350px;
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr) 88px;
+    font-size: 13px;
+  }
+
+  .touch-controls {
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .touch-controls button {
+    min-height: 36px;
+    font-size: 13px;
+  }
+
+  .fuel {
+    width: 100%;
+    text-align: center;
+  }
+
+  .language-choice {
+    width: 100%;
+  }
+
+  .formula {
+    font-size: 1.05rem;
+  }
+}
