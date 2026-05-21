@@ -33,7 +33,11 @@ const UI = {
         real_speed: "Real speed",
         boat_heading: "Boat heading",
         wake_length: "Wake length",
-        current: "Current"
+        current: "Current",
+        crossing_risk: "Crossing risk",
+        crossing_active: "Lines crossed",
+        distance_label: "distance",
+        depth_label: "depth"
     },
     it: {
         general_settings: "Parametri generali",
@@ -67,7 +71,11 @@ const UI = {
         real_speed: "Velocità reale",
         boat_heading: "Rotta barca",
         wake_length: "Lunghezza scia",
-        current: "Corrente"
+        current: "Corrente",
+        crossing_risk: "Rischio incrocio",
+        crossing_active: "Lenze incrociate",
+        distance_label: "distanza",
+        depth_label: "profondità"
     }
 };
 
@@ -120,6 +128,10 @@ const BOAT_SPEED_RESPONSE = 0.85;
 
 const LINE_SEGMENTS_PER_ROD = 100;
 const LINE_CONSTRAINT_ITERATIONS = 60;
+
+const SAME_DEPTH_TOLERANCE_M = 0.25;
+const LURE_LINE_WARNING_DISTANCE_M = 1.5;
+const LURE_LINE_CROSSED_DISTANCE_M = 0.30;
 
 const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
@@ -834,6 +846,309 @@ function worldToScreen(point, camera) {
     };
 }
 
+function pointSegmentDistance(point, a, b) {
+    const ab = sub(b, a);
+    const ap = sub(point, a);
+
+    const abLenSq = ab.x * ab.x + ab.y * ab.y;
+
+    if (abLenSq < 1e-12) {
+        return length(sub(point, a));
+    }
+
+    let t = (ap.x * ab.x + ap.y * ab.y) / abLenSq;
+    t = clamp(t, 0.0, 1.0);
+
+    const closest = add(a, mul(ab, t));
+    return length(sub(point, closest));
+}
+
+function orientation(a, b, c) {
+    const value =
+        (b.y - a.y) * (c.x - b.x) -
+        (b.x - a.x) * (c.y - b.y);
+
+    if (Math.abs(value) < 1e-9) {
+        return 0;
+    }
+
+    return value > 0 ? 1 : 2;
+}
+
+function onSegment(a, b, c) {
+    return (
+        b.x <= Math.max(a.x, c.x) + 1e-9 &&
+        b.x >= Math.min(a.x, c.x) - 1e-9 &&
+        b.y <= Math.max(a.y, c.y) + 1e-9 &&
+        b.y >= Math.min(a.y, c.y) - 1e-9
+    );
+}
+
+function segmentsIntersect(p1, q1, p2, q2) {
+    const o1 = orientation(p1, q1, p2);
+    const o2 = orientation(p1, q1, q2);
+    const o3 = orientation(p2, q2, p1);
+    const o4 = orientation(p2, q2, q1);
+
+    if (o1 !== o2 && o3 !== o4) {
+        return true;
+    }
+
+    if (o1 === 0 && onSegment(p1, p2, q1)) return true;
+    if (o2 === 0 && onSegment(p1, q2, q1)) return true;
+    if (o3 === 0 && onSegment(p2, p1, q2)) return true;
+    if (o4 === 0 && onSegment(p2, q1, q2)) return true;
+
+    return false;
+}
+
+function minLureDistanceToLine(lurePoint, otherLine) {
+    let minDistance = Infinity;
+
+    /*
+      Partiamo da 1 per ignorare il primissimo tratto vicino alla punta canna.
+      Così il controllo riguarda soprattutto la lenza effettivamente in acqua.
+    */
+    for (let i = 1; i < otherLine.points.length - 1; i++) {
+        const a = otherLine.points[i];
+        const b = otherLine.points[i + 1];
+
+        const d = pointSegmentDistance(lurePoint, a, b);
+
+        if (d < minDistance) {
+            minDistance = d;
+        }
+    }
+
+    return minDistance;
+}
+
+function lureSegmentCrossesLine(lureSegmentStart, lureSegmentEnd, otherLine) {
+    /*
+      Controlla se il tratto finale percorso dall'esca incrocia una delle
+      porzioni della lenza dell'altra canna.
+    */
+    for (let i = 1; i < otherLine.points.length - 1; i++) {
+        const a = otherLine.points[i];
+        const b = otherLine.points[i + 1];
+
+        if (segmentsIntersect(lureSegmentStart, lureSegmentEnd, a, b)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function riskColorFromDistance(distanceM, crossed) {
+    if (crossed || distanceM <= LURE_LINE_CROSSED_DISTANCE_M) {
+        return {
+            fill: "rgba(220, 40, 35, 0.94)",
+            stroke: "rgba(120, 0, 0, 0.95)",
+            text: "#ffffff",
+            level: 1.0
+        };
+    }
+
+    const t = clamp(
+        1.0 - distanceM / LURE_LINE_WARNING_DISTANCE_M,
+        0.0,
+        1.0
+    );
+
+    /*
+      t = 0  -> giallo
+      t = 1  -> rosso
+    */
+    const r = 255;
+    const g = Math.round(215 * (1.0 - t) + 45 * t);
+    const b = Math.round(50 * (1.0 - t) + 35 * t);
+
+    return {
+        fill: `rgba(${r}, ${g}, ${b}, 0.92)`,
+        stroke: `rgba(${Math.max(120, r - 80)}, ${Math.max(20, g - 80)}, 0, 0.95)`,
+        text: t > 0.62 ? "#ffffff" : "#2b1a00",
+        level: t
+    };
+}
+
+function getLineCrossingRisks() {
+    const risks = [];
+
+    if (!lines || lines.length < 2) {
+        return risks;
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+        const lureLine = lines[i];
+
+        if (!lureLine.points || lureLine.points.length < 2) {
+            continue;
+        }
+
+        const lurePoint = lureLine.points[lureLine.points.length - 1];
+        const previousLurePoint = lureLine.points[lureLine.points.length - 2];
+        const depthA = lureLine.config.trollingDepthM;
+
+        for (let j = 0; j < lines.length; j++) {
+            if (i === j) {
+                continue;
+            }
+
+            const otherLine = lines[j];
+            const depthB = otherLine.config.trollingDepthM;
+
+            const sameDepth =
+                Math.abs(depthA - depthB) <= SAME_DEPTH_TOLERANCE_M;
+
+            if (!sameDepth) {
+                continue;
+            }
+
+            const distanceM = minLureDistanceToLine(lurePoint, otherLine);
+
+            const crossed =
+                distanceM <= LURE_LINE_CROSSED_DISTANCE_M ||
+                lureSegmentCrossesLine(previousLurePoint, lurePoint, otherLine);
+
+            if (distanceM <= LURE_LINE_WARNING_DISTANCE_M || crossed) {
+                risks.push({
+                    lureRod: lureLine.config.name,
+                    lineRod: otherLine.config.name,
+                    depth: depthA,
+                    distance: distanceM,
+                    crossed: crossed,
+                    severity: crossed
+                        ? 1.0
+                        : clamp(1.0 - distanceM / LURE_LINE_WARNING_DISTANCE_M, 0.0, 1.0)
+                });
+            }
+        }
+    }
+
+    /*
+      Evita doppioni troppo rumorosi:
+      se A rischia con B e B rischia con A, teniamo comunque entrambi solo se
+      entrambi sono davvero rilevanti. Ordiniamo prima i più gravi.
+    */
+    risks.sort((a, b) => {
+        if (a.crossed !== b.crossed) {
+            return a.crossed ? -1 : 1;
+        }
+        return b.severity - a.severity;
+    });
+
+    return risks;
+}
+
+function drawLineCrossingIndicators() {
+    const risks = getLineCrossingRisks();
+
+    if (risks.length === 0) {
+        return;
+    }
+
+    const smallScreen = WIDTH < 600;
+
+    const x = smallScreen ? 10 : 12;
+    let y = smallScreen ? HEIGHT - 128 : HEIGHT - 150;
+
+    const maxItems = smallScreen ? 3 : 5;
+    const visibleRisks = risks.slice(0, maxItems);
+
+    const cardWidth = smallScreen ? WIDTH - 20 : Math.min(620, WIDTH - 24);
+    const rowHeight = smallScreen ? 34 : 38;
+    const headerHeight = smallScreen ? 34 : 40;
+    const cardHeight = headerHeight + rowHeight * visibleRisks.length + 10;
+
+    y = Math.max(10, y - Math.max(0, cardHeight - 120));
+
+    ctx.save();
+
+    ctx.fillStyle = "rgba(18, 56, 79, 0.86)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.24)";
+    ctx.lineWidth = 1.5;
+
+    roundRect(ctx, x, y, cardWidth, cardHeight, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = smallScreen
+        ? "bold 13px Arial, sans-serif"
+        : "bold 17px Arial, sans-serif";
+
+    ctx.fillText(`⚠ ${T.crossing_risk}`, x + 14, y + 25);
+
+    if (risks.length > visibleRisks.length) {
+        ctx.font = smallScreen
+            ? "bold 12px Arial, sans-serif"
+            : "bold 14px Arial, sans-serif";
+        ctx.fillText(
+            `+${risks.length - visibleRisks.length}`,
+            x + cardWidth - 42,
+            y + 25
+        );
+    }
+
+    for (let k = 0; k < visibleRisks.length; k++) {
+        const risk = visibleRisks[k];
+        const cy = y + headerHeight + k * rowHeight;
+
+        const color = riskColorFromDistance(risk.distance, risk.crossed);
+
+        const pillX = x + 12;
+        const pillY = cy + 4;
+        const pillW = cardWidth - 24;
+        const pillH = rowHeight - 7;
+
+        ctx.fillStyle = color.fill;
+        ctx.strokeStyle = color.stroke;
+        ctx.lineWidth = 1.5;
+
+        roundRect(ctx, pillX, pillY, pillW, pillH, 999);
+        ctx.fill();
+        ctx.stroke();
+
+        const icon = risk.crossed ? "🧶" : "●";
+        const status = risk.crossed ? T.crossing_active : T.crossing_risk;
+
+        const label =
+            `${icon} ${status}: ${risk.lureRod} → ${risk.lineRod}`;
+
+        const details =
+            `${T.distance_label}: ${risk.distance.toFixed(2)} m · ${T.depth_label}: ${risk.depth.toFixed(1)} m`;
+
+        ctx.fillStyle = color.text;
+
+        ctx.font = smallScreen
+            ? "bold 11px Arial, sans-serif"
+            : "bold 13px Arial, sans-serif";
+
+        ctx.fillText(label, pillX + 12, pillY + 15);
+
+        ctx.font = smallScreen
+            ? "10px Arial, sans-serif"
+            : "12px Arial, sans-serif";
+
+        ctx.fillText(details, pillX + 12, pillY + 29);
+    }
+
+    ctx.restore();
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+    const r = Math.min(radius, width / 2, height / 2);
+
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
+}
+
 function drawGrid(camera) {
     const gridSpacingM = 20;
     const gridSpacingPx = gridSpacingM * PIXELS_PER_METER;
@@ -1220,6 +1535,7 @@ function animate(now) {
         drawRods(camera);
         drawHud();
         drawLegend();
+        drawLineCrossingIndicators();
     }
 
     requestAnimationFrame(animate);
