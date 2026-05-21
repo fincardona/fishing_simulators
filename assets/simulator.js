@@ -37,7 +37,9 @@ const UI = {
         crossing_risk: "Crossing risk",
         crossing_active: "Lines crossed",
         distance_label: "distance",
-        depth_label: "depth"
+        depth_label: "depth",
+        safe_label: "safe",
+        danger_label: "danger"
     },
     it: {
         general_settings: "Parametri generali",
@@ -75,7 +77,9 @@ const UI = {
         crossing_risk: "Rischio incrocio",
         crossing_active: "Lenze incrociate",
         distance_label: "distanza",
-        depth_label: "profondità"
+        depth_label: "profondità",
+        safe_label: "sicuro",
+        danger_label: "pericolo"
     }
 };
 
@@ -129,7 +133,7 @@ const BOAT_SPEED_RESPONSE = 0.85;
 const LINE_SEGMENTS_PER_ROD = 100;
 const LINE_CONSTRAINT_ITERATIONS = 60;
 
-const SAME_DEPTH_TOLERANCE_M = 0.25;
+const SAME_DEPTH_TOLERANCE_M = 0.30;
 const LURE_LINE_WARNING_DISTANCE_M = 1.5;
 const LURE_LINE_CROSSED_DISTANCE_M = 0.30;
 
@@ -582,6 +586,7 @@ class Line {
 
         this.points = [];
         this.velocities = [];
+        this.previousLurePoint = null;
 
         const initialAnchor = this.rodTipPoint(boatPosition, boatHeading);
         const backward = mul(boatHeading, -1);
@@ -591,6 +596,7 @@ class Line {
             this.points.push(p);
             this.velocities.push({...boatVelocity});
         }
+        this.previousLurePoint = {...this.points[this.points.length - 1]};
     }
 
     rodBasePoint(boatPosition, boatHeading) {
@@ -625,6 +631,7 @@ class Line {
 
     update(dt, boatPosition, boatHeading, boatVelocity, currentVec) {
         const anchor = this.rodTipPoint(boatPosition, boatHeading);
+        this.previousLurePoint = {...this.points[this.points.length - 1]};
 
         this.points[0] = {...anchor};
         this.velocities[0] = {...boatVelocity};
@@ -987,7 +994,7 @@ function getLineCrossingRisks() {
         }
 
         const lurePoint = lureLine.points[lureLine.points.length - 1];
-        const previousLurePoint = lureLine.points[lureLine.points.length - 2];
+        const previousLurePoint = lureLine.previousLurePoint || lureLine.points[lureLine.points.length - 2];
         const depthA = lureLine.config.trollingDepthM;
 
         for (let j = 0; j < lines.length; j++) {
@@ -1041,7 +1048,7 @@ function getLineCrossingRisks() {
     return risks;
 }
 
-function drawLineCrossingIndicators() {
+function drawLineCrossingIndicators(camera) {
     const risks = getLineCrossingRisks();
 
     if (risks.length === 0) {
@@ -1051,21 +1058,21 @@ function drawLineCrossingIndicators() {
     const smallScreen = WIDTH < 600;
 
     const x = smallScreen ? 10 : 12;
-    let y = smallScreen ? HEIGHT - 128 : HEIGHT - 150;
+    let y = smallScreen ? HEIGHT - 130 : HEIGHT - 152;
 
     const maxItems = smallScreen ? 3 : 5;
     const visibleRisks = risks.slice(0, maxItems);
 
-    const cardWidth = smallScreen ? WIDTH - 20 : Math.min(620, WIDTH - 24);
-    const rowHeight = smallScreen ? 34 : 38;
+    const cardWidth = smallScreen ? WIDTH - 20 : Math.min(650, WIDTH - 24);
+    const rowHeight = smallScreen ? 52 : 58;
     const headerHeight = smallScreen ? 34 : 40;
-    const cardHeight = headerHeight + rowHeight * visibleRisks.length + 10;
+    const cardHeight = headerHeight + rowHeight * visibleRisks.length + 12;
 
-    y = Math.max(10, y - Math.max(0, cardHeight - 120));
+    y = Math.max(10, y - Math.max(0, cardHeight - 126));
 
     ctx.save();
 
-    ctx.fillStyle = "rgba(18, 56, 79, 0.86)";
+    ctx.fillStyle = "rgba(18, 56, 79, 0.88)";
     ctx.strokeStyle = "rgba(255, 255, 255, 0.24)";
     ctx.lineWidth = 1.5;
 
@@ -1084,6 +1091,7 @@ function drawLineCrossingIndicators() {
         ctx.font = smallScreen
             ? "bold 12px Arial, sans-serif"
             : "bold 14px Arial, sans-serif";
+
         ctx.fillText(
             `+${risks.length - visibleRisks.length}`,
             x + cardWidth - 42,
@@ -1093,45 +1101,174 @@ function drawLineCrossingIndicators() {
 
     for (let k = 0; k < visibleRisks.length; k++) {
         const risk = visibleRisks[k];
-        const cy = y + headerHeight + k * rowHeight;
 
-        const color = riskColorFromDistance(risk.distance, risk.crossed);
+        const rowY = y + headerHeight + k * rowHeight;
+        drawCrossingRiskSlider(
+            risk,
+            x + 14,
+            rowY + 4,
+            cardWidth - 28,
+            rowHeight - 8,
+            smallScreen
+        );
+    }
 
-        const pillX = x + 12;
-        const pillY = cy + 4;
-        const pillW = cardWidth - 24;
-        const pillH = rowHeight - 7;
+    ctx.restore();
+}
 
-        ctx.fillStyle = color.fill;
-        ctx.strokeStyle = color.stroke;
-        ctx.lineWidth = 1.5;
+function drawCrossingRiskSlider(risk, x, y, width, height, smallScreen) {
+    /*
+      severity:
+      0.0 = distanza 1 m, giallo, rischio appena comparso
+      1.0 = distanza 0 m o lenze incrociate, rosso massimo
+    */
+    const severity = risk.crossed
+        ? 1.0
+        : clamp(
+            1.0 - risk.distance / LURE_LINE_WARNING_DISTANCE_M,
+            0.0,
+            1.0
+        );
 
-        roundRect(ctx, pillX, pillY, pillW, pillH, 999);
-        ctx.fill();
+    const title = risk.crossed ? T.crossing_active : T.crossing_risk;
+
+    const label =
+        `${title}: ${risk.lureRod} → ${risk.lineRod}`;
+
+    const details =
+        `${T.distance_label}: ${risk.distance.toFixed(2)} m · ` +
+        `${T.depth_label}: ${risk.depth.toFixed(1)} m`;
+
+    const labelFont = smallScreen
+        ? "bold 11px Arial, sans-serif"
+        : "bold 13px Arial, sans-serif";
+
+    const detailFont = smallScreen
+        ? "10px Arial, sans-serif"
+        : "12px Arial, sans-serif";
+
+    const sliderX = x;
+    const sliderY = y + (smallScreen ? 27 : 31);
+    const sliderW = width;
+    const sliderH = smallScreen ? 12 : 14;
+
+    const knobRadius = smallScreen ? 10 : 12;
+
+    const knobX = sliderX + severity * sliderW;
+    const knobY = sliderY + sliderH / 2;
+
+    ctx.save();
+
+    /*
+      Riga testuale sopra lo slider
+    */
+    ctx.fillStyle = "#ffffff";
+    ctx.font = labelFont;
+    ctx.fillText(label, x, y + 13);
+
+    ctx.font = detailFont;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
+    ctx.fillText(details, x, y + 27);
+
+    /*
+      Sfondo slider
+    */
+    const gradient = ctx.createLinearGradient(sliderX, 0, sliderX + sliderW, 0);
+
+    gradient.addColorStop(0.00, "rgb(255, 224, 70)");
+    gradient.addColorStop(0.50, "rgb(255, 145, 35)");
+    gradient.addColorStop(1.00, "rgb(220, 40, 35)");
+
+    roundRect(ctx, sliderX, sliderY, sliderW, sliderH, 999);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    /*
+      Bordo slider
+    */
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.52)";
+    ctx.lineWidth = 1.2;
+    roundRect(ctx, sliderX, sliderY, sliderW, sliderH, 999);
+    ctx.stroke();
+
+    /*
+      Piccole tacche: giallo, arancio, rosso
+    */
+    ctx.strokeStyle = "rgba(18, 56, 79, 0.55)";
+    ctx.lineWidth = 1;
+
+    for (const t of [0.0, 0.5, 1.0]) {
+        const tx = sliderX + sliderW * t;
+
+        ctx.beginPath();
+        ctx.moveTo(tx, sliderY - 2);
+        ctx.lineTo(tx, sliderY + sliderH + 2);
         ctx.stroke();
+    }
 
-        const icon = risk.crossed ? "🧶" : "●";
-        const status = risk.crossed ? T.crossing_active : T.crossing_risk;
+    /*
+      Etichette estremi
+    */
+    ctx.font = smallScreen
+        ? "9px Arial, sans-serif"
+        : "10px Arial, sans-serif";
 
-        const label =
-            `${icon} ${status}: ${risk.lureRod} → ${risk.lineRod}`;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
+    ctx.fillText(T.safe_label, sliderX, sliderY + sliderH + 14);
 
-        const details =
-            `${T.distance_label}: ${risk.distance.toFixed(2)} m · ${T.depth_label}: ${risk.depth.toFixed(1)} m`;
+    const dangerText = T.danger_label;
+    const dangerWidth = ctx.measureText(dangerText).width;
+    ctx.fillText(dangerText, sliderX + sliderW - dangerWidth, sliderY + sliderH + 14);
 
-        ctx.fillStyle = color.text;
+    /*
+      Cursore gomitolo.
+      Se crossed è true resta a destra, rosso massimo.
+    */
+    ctx.beginPath();
+    ctx.arc(knobX, knobY, knobRadius, 0, Math.PI * 2);
+    ctx.fillStyle = risk.crossed
+        ? "rgba(130, 0, 0, 0.98)"
+        : "rgba(255, 255, 255, 0.95)";
+    ctx.fill();
 
+    ctx.strokeStyle = risk.crossed
+        ? "rgba(255, 255, 255, 0.95)"
+        : "rgba(60, 40, 0, 0.85)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.font = smallScreen
+        ? "15px Arial, sans-serif"
+        : "18px Arial, sans-serif";
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("🧶", knobX, knobY + 0.5);
+
+    ctx.textAlign = "start";
+    ctx.textBaseline = "alphabetic";
+
+    /*
+      Se incrociate, piccolo badge rosso a destra.
+    */
+    if (risk.crossed) {
+        const badgeText = "MAX";
         ctx.font = smallScreen
-            ? "bold 11px Arial, sans-serif"
-            : "bold 13px Arial, sans-serif";
+            ? "bold 9px Arial, sans-serif"
+            : "bold 10px Arial, sans-serif";
 
-        ctx.fillText(label, pillX + 12, pillY + 15);
+        const badgeW = ctx.measureText(badgeText).width + 12;
+        const badgeH = smallScreen ? 16 : 18;
+        const badgeX = sliderX + sliderW - badgeW;
+        const badgeY = y + 2;
 
-        ctx.font = smallScreen
-            ? "10px Arial, sans-serif"
-            : "12px Arial, sans-serif";
+        ctx.fillStyle = "rgba(220, 40, 35, 0.95)";
+        roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 999);
+        ctx.fill();
 
-        ctx.fillText(details, pillX + 12, pillY + 29);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(badgeText, badgeX + 6, badgeY + badgeH - 5);
     }
 
     ctx.restore();
@@ -1535,7 +1672,7 @@ function animate(now) {
         drawRods(camera);
         drawHud();
         drawLegend();
-        drawLineCrossingIndicators();
+        drawLineCrossingIndicators(camera);
     }
 
     requestAnimationFrame(animate);
