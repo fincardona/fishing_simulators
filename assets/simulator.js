@@ -25,6 +25,7 @@ const UI = {
         name: "Name",
         depth: "Depth m",
         diameter: "Diameter mm",
+        legend_depth: "depth",
         lure_weight: "Lure weight g",
         line_length: "Line length m",
         lateral_base: "Lateral base m",
@@ -38,8 +39,8 @@ const UI = {
         crossing_active: "Lines crossed",
         distance_label: "distance",
         depth_label: "depth",
-        safe_label: "safe",
-        danger_label: "danger"
+        safe_label: "low",
+        danger_label: "bird's nest"
     },
     it: {
         general_settings: "Parametri generali",
@@ -65,6 +66,7 @@ const UI = {
         name: "Nome",
         depth: "Profondità m",
         diameter: "Diametro mm",
+        legend_depth: "prof.",
         lure_weight: "Peso esca g",
         line_length: "Lenza m",
         lateral_base: "Base laterale m",
@@ -78,8 +80,8 @@ const UI = {
         crossing_active: "Lenze incrociate",
         distance_label: "distanza",
         depth_label: "profondità",
-        safe_label: "sicuro",
-        danger_label: "pericolo"
+        safe_label: "basso",
+        danger_label: "parrucca"
     }
 };
 
@@ -134,7 +136,25 @@ const LINE_SEGMENTS_PER_ROD = 100;
 const LINE_CONSTRAINT_ITERATIONS = 60;
 
 const SAME_DEPTH_TOLERANCE_M = 0.30;
-const LURE_LINE_WARNING_DISTANCE_M = 1.5;
+
+/*
+  Lo slider compare entro 2 m.
+*/
+const LURE_LINE_VISIBLE_DISTANCE_M = 2.0;
+
+/*
+  Il gomitolo compare entro 1.2 m.
+*/
+const LURE_LINE_KNOB_VISIBLE_DISTANCE_M = 1.2;
+
+/*
+  Da 1 m in giù il gomitolo inizia a muoversi verso il rosso.
+*/
+const LURE_LINE_WARNING_DISTANCE_M = 1.0;
+
+/*
+  Sotto questa distanza lo slider va al massimo.
+*/
 const LURE_LINE_CROSSED_DISTANCE_M = 0.30;
 
 const canvas = document.getElementById("simCanvas");
@@ -153,6 +173,8 @@ let boat = null;
 let lines = [];
 let config = null;
 let lastTime = performance.now();
+let activeCrossings = new Map();
+let crossingContact = new Map();
 
 const colors = [
     "#ffdc78",
@@ -743,6 +765,8 @@ class Line {
 function resetSimulationWithConfig(appConfig) {
     config = appConfig;
     boat = new Boat(config.initialSpeedKnots);
+    activeCrossings.clear();
+    crossingContact.clear();
 
     const initialCurrent = currentVector(config, boat.heading());
     boat.velocity = add(boat.waterVelocity, initialCurrent);
@@ -947,44 +971,16 @@ function lureSegmentCrossesLine(lureSegmentStart, lureSegmentEnd, otherLine) {
     return false;
 }
 
-function riskColorFromDistance(distanceM, crossed) {
-    if (crossed || distanceM <= LURE_LINE_CROSSED_DISTANCE_M) {
-        return {
-            fill: "rgba(220, 40, 35, 0.94)",
-            stroke: "rgba(120, 0, 0, 0.95)",
-            text: "#ffffff",
-            level: 1.0
-        };
-    }
-
-    const t = clamp(
-        1.0 - distanceM / LURE_LINE_WARNING_DISTANCE_M,
-        0.0,
-        1.0
-    );
-
-    /*
-      t = 0  -> giallo
-      t = 1  -> rosso
-    */
-    const r = 255;
-    const g = Math.round(215 * (1.0 - t) + 45 * t);
-    const b = Math.round(50 * (1.0 - t) + 35 * t);
-
-    return {
-        fill: `rgba(${r}, ${g}, ${b}, 0.92)`,
-        stroke: `rgba(${Math.max(120, r - 80)}, ${Math.max(20, g - 80)}, 0, 0.95)`,
-        text: t > 0.62 ? "#ffffff" : "#2b1a00",
-        level: t
-    };
-}
-
 function getLineCrossingRisks() {
     const risks = [];
 
     if (!lines || lines.length < 2) {
+        activeCrossings.clear();
+        crossingContact.clear();
         return risks;
     }
+
+    const seenPairs = new Set();
 
     for (let i = 0; i < lines.length; i++) {
         const lureLine = lines[i];
@@ -994,7 +990,9 @@ function getLineCrossingRisks() {
         }
 
         const lurePoint = lureLine.points[lureLine.points.length - 1];
-        const previousLurePoint = lureLine.previousLurePoint || lureLine.points[lureLine.points.length - 2];
+        const previousLurePoint =
+            lureLine.previousLurePoint || lureLine.points[lureLine.points.length - 2];
+
         const depthA = lureLine.config.trollingDepthM;
 
         for (let j = 0; j < lines.length; j++) {
@@ -1012,36 +1010,108 @@ function getLineCrossingRisks() {
                 continue;
             }
 
+            const pairKey = `${i}->${j}`;
+            seenPairs.add(pairKey);
+
             const distanceM = minLureDistanceToLine(lurePoint, otherLine);
 
-            const crossed =
-                distanceM <= LURE_LINE_CROSSED_DISTANCE_M ||
+            /*
+              crossingNow significa: l'esca della canna i ha attraversato
+              la lenza filata in acqua della canna j in questo frame.
+            */
+            const crossingNow =
                 lureSegmentCrossesLine(previousLurePoint, lurePoint, otherLine);
 
-            if (distanceM <= LURE_LINE_WARNING_DISTANCE_M || crossed) {
+            /*
+              Stato:
+              - false / assente: nessun incrocio attivo
+              - true: l'esca ha già attraversato quella lenza e deve
+                ri-attraversarla per sciogliere l'incrocio
+            */
+            const wasCrossed = activeCrossings.get(pairKey) === true;
+            const wasInContact = crossingContact.get(pairKey) === true;
+            
+            /*
+                Evita toggle multipli mentre l'esca resta appoggiata o sovrapposta alla lenza.
+                Un nuovo attraversamento viene contato solo quando crossingNow passa da false a true.
+            */
+            const crossingEvent = crossingNow && !wasInContact;
+            
+            if (crossingNow) {
+                crossingContact.set(pairKey, true);
+            } else {
+                crossingContact.delete(pairKey);
+            }
+            
+            let crossed = wasCrossed;
+            
+            if (crossingEvent) {
+                if (wasCrossed) {
+                    /*
+                        Secondo attraversamento reale:
+                        incrocio sciolto.
+                    */
+                    activeCrossings.delete(pairKey);
+                    crossed = false;
+                } else {
+                    /*
+                        Primo attraversamento reale:
+                        incrocio attivo.
+                    */
+                    activeCrossings.set(pairKey, true);
+                    crossed = true;
+                }
+            }
+
+            const veryClose =
+                distanceM <= LURE_LINE_CROSSED_DISTANCE_M;
+
+            /*
+              Mostra lo slider se:
+              - l'incrocio è attivo;
+              - oppure l'esca è entro la distanza di warning.
+            */
+            if (crossed || distanceM <= LURE_LINE_VISIBLE_DISTANCE_M) {
                 risks.push({
                     lureRod: lureLine.config.name,
                     lineRod: otherLine.config.name,
                     depth: depthA,
                     distance: distanceM,
                     crossed: crossed,
-                    severity: crossed
+                    veryClose: veryClose,
+                    severity: crossed || veryClose
                         ? 1.0
-                        : clamp(1.0 - distanceM / LURE_LINE_WARNING_DISTANCE_M, 0.0, 1.0)
+                        : clamp(
+                            1.0 - distanceM / LURE_LINE_WARNING_DISTANCE_M,
+                            0.0,
+                            1.0
+                        )
                 });
             }
         }
     }
 
     /*
-      Evita doppioni troppo rumorosi:
-      se A rischia con B e B rischia con A, teniamo comunque entrambi solo se
-      entrambi sono davvero rilevanti. Ordiniamo prima i più gravi.
+      Pulizia: se una coppia non esiste più perché hai cambiato numero di canne,
+      profondità o configurazione, rimuovila dalla memoria.
     */
+    for (const key of activeCrossings.keys()) {
+        if (!seenPairs.has(key)) {
+            activeCrossings.delete(key);
+        }
+    }
+    
+    for (const key of crossingContact.keys()) {
+        if (!seenPairs.has(key)) {
+            crossingContact.delete(key);
+        }
+    }
+
     risks.sort((a, b) => {
         if (a.crossed !== b.crossed) {
             return a.crossed ? -1 : 1;
         }
+
         return b.severity - a.severity;
     });
 
@@ -1118,17 +1188,26 @@ function drawLineCrossingIndicators(camera) {
 
 function drawCrossingRiskSlider(risk, x, y, width, height, smallScreen) {
     /*
-      severity:
-      0.0 = distanza 1 m, giallo, rischio appena comparso
-      1.0 = distanza 0 m o lenze incrociate, rosso massimo
+    Slider:
+    - visibile da distanza <= 2.0 m
+    - gomitolo visibile da distanza <= 1.2 m
+
+    severity:
+    0.0 = distanza >= 1.0 m, giallo, gomitolo fermo a sinistra
+    1.0 = distanza <= 0.30 m o lenze incrociate, rosso massimo
     */
-    const severity = risk.crossed
-        ? 1.0
-        : clamp(
-            1.0 - risk.distance / LURE_LINE_WARNING_DISTANCE_M,
-            0.0,
-            1.0
-        );
+    const severity = risk.crossed || risk.veryClose
+    ? 1.0
+    : clamp(
+        1.0 - risk.distance / LURE_LINE_WARNING_DISTANCE_M,
+        0.0,
+        1.0
+    );
+
+    const showKnob =
+        risk.crossed ||
+        risk.veryClose ||
+        risk.distance <= LURE_LINE_KNOB_VISIBLE_DISTANCE_M;
 
     const title = risk.crossed ? T.crossing_active : T.crossing_risk;
 
@@ -1192,21 +1271,6 @@ function drawCrossingRiskSlider(risk, x, y, width, height, smallScreen) {
     ctx.stroke();
 
     /*
-      Piccole tacche: giallo, arancio, rosso
-    */
-    ctx.strokeStyle = "rgba(18, 56, 79, 0.55)";
-    ctx.lineWidth = 1;
-
-    for (const t of [0.0, 0.5, 1.0]) {
-        const tx = sliderX + sliderW * t;
-
-        ctx.beginPath();
-        ctx.moveTo(tx, sliderY - 2);
-        ctx.lineTo(tx, sliderY + sliderH + 2);
-        ctx.stroke();
-    }
-
-    /*
       Etichette estremi
     */
     ctx.font = smallScreen
@@ -1221,33 +1285,35 @@ function drawCrossingRiskSlider(risk, x, y, width, height, smallScreen) {
     ctx.fillText(dangerText, sliderX + sliderW - dangerWidth, sliderY + sliderH + 14);
 
     /*
-      Cursore gomitolo.
-      Se crossed è true resta a destra, rosso massimo.
+    Cursore gomitolo.
+    Compare solo entro 1.2 m oppure quando l'incrocio è attivo.
     */
-    ctx.beginPath();
-    ctx.arc(knobX, knobY, knobRadius, 0, Math.PI * 2);
-    ctx.fillStyle = risk.crossed
-        ? "rgba(130, 0, 0, 0.98)"
-        : "rgba(255, 255, 255, 0.95)";
-    ctx.fill();
+    if (showKnob) {
+        ctx.beginPath();
+        ctx.arc(knobX, knobY, knobRadius, 0, Math.PI * 2);
+        ctx.fillStyle = risk.crossed || risk.veryClose
+            ? "rgba(130, 0, 0, 0.98)"
+            : "rgba(255, 255, 255, 0.95)";
+        ctx.fill();
 
-    ctx.strokeStyle = risk.crossed
-        ? "rgba(255, 255, 255, 0.95)"
-        : "rgba(60, 40, 0, 0.85)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+        ctx.strokeStyle = risk.crossed || risk.veryClose
+            ? "rgba(255, 255, 255, 0.95)"
+            : "rgba(60, 40, 0, 0.85)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
 
-    ctx.font = smallScreen
-        ? "15px Arial, sans-serif"
-        : "18px Arial, sans-serif";
+        ctx.font = smallScreen
+            ? "15px Arial, sans-serif"
+            : "18px Arial, sans-serif";
 
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText("🧶", knobX, knobY + 0.5);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText("🧶", knobX, knobY + 0.5);
 
-    ctx.textAlign = "start";
-    ctx.textBaseline = "alphabetic";
+        ctx.textAlign = "start";
+        ctx.textBaseline = "alphabetic";
+    }
 
     /*
       Se incrociate, piccolo badge rosso a destra.
@@ -1604,7 +1670,7 @@ function drawLegend() {
 
     const labels = config.rods.map((rod, i) => {
         return {
-            text: `${rod.name}: ${rod.lineLengthM.toFixed(0)} m`,
+            text: `${rod.name}: ${rod.lineLengthM.toFixed(0)} m · ${T.legend_depth} ${rod.trollingDepthM.toFixed(1)} m`,
             color: colors[i % colors.length],
         };
     });
