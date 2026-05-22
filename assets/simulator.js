@@ -1209,8 +1209,12 @@ function evaluateLureAgainstLine(lureIndex, lineIndex, lureLine, otherLine) {
     }
 
     return {
+        pairKey: pairKey,
+        pairA: Math.min(lureIndex, lineIndex),
+        pairB: Math.max(lureIndex, lineIndex),
         lureRod: lureLine.config.name,
         lineRod: otherLine.config.name,
+        pairLabel: `${lines[Math.min(lureIndex, lineIndex)].config.name} ↔ ${lines[Math.max(lureIndex, lineIndex)].config.name}`,
         depth: lureLine.config.trollingDepthM,
         distance: distanceM,
         crossed: state.crossed,
@@ -1286,15 +1290,20 @@ function getLineCrossingRisks() {
             crossingStates.delete(key);
         }
     }
-
+    
+    /*
+      Ordine stabile:
+      non ordiniamo per gravità, perché altrimenti gli slider saltano posizione.
+      Ordiniamo sempre per numero di coppia.
+    */
     risks.sort((a, b) => {
-        if (a.crossed !== b.crossed) {
-            return a.crossed ? -1 : 1;
+        if (a.pairA !== b.pairA) {
+            return a.pairA - b.pairA;
         }
-
-        return b.severity - a.severity;
+    
+        return a.pairB - b.pairB;
     });
-
+    
     return risks;
 }
 
@@ -1396,7 +1405,7 @@ function drawCrossingRiskSlider(risk, x, y, width, height, smallScreen) {
     const title = risk.crossed ? T.crossing_active : T.crossing_risk;
 
     const label =
-    `${title}: ${risk.lureRod} ↔ ${risk.lineRod}`;
+        `${title}: ${risk.pairLabel || `${risk.lureRod} ↔ ${risk.lineRod}`}`;
 
     const details =
         `${T.distance_label}: ${risk.distance.toFixed(2)} m · ` +
