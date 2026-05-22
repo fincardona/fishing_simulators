@@ -1232,18 +1232,23 @@ function drawLineCrossingIndicators(camera) {
 
     const smallScreen = WIDTH < 600;
 
-    const x = smallScreen ? 10 : 12;
-    let y = smallScreen ? HEIGHT - 130 : HEIGHT - 152;
-
     const maxItems = smallScreen ? 3 : 5;
     const visibleRisks = risks.slice(0, maxItems);
-
-    const cardWidth = smallScreen ? WIDTH - 20 : Math.min(650, WIDTH - 24);
+    
+    const cardWidth = smallScreen
+        ? Math.min(WIDTH - 20, 360)
+        : Math.min(340, WIDTH - 24);
+    
     const rowHeight = smallScreen ? 52 : 58;
     const headerHeight = smallScreen ? 34 : 40;
     const cardHeight = headerHeight + rowHeight * visibleRisks.length + 12;
-
-    y = Math.max(10, y - Math.max(0, cardHeight - 126));
+    
+    /*
+      Pannello rischio incrocio in basso a destra.
+      Larghezza circa dimezzata rispetto alla versione precedente.
+    */
+    const x = WIDTH - cardWidth - (smallScreen ? 10 : 12);
+    const y = HEIGHT - cardHeight - (smallScreen ? 10 : 12);
 
     ctx.save();
 
