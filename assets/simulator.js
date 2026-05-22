@@ -293,7 +293,7 @@ function defaultRodLayout(n) {
             [`${T.rod} 1`, -5.0, -90.0, 70.0, 0.0, 0.60, 40.0],
             [`${T.rod} 2`, -1.0, -45.0, 60.0, 0.0, 0.60, 40.0],
             [`${T.rod} 3`, 0.0, 0.0, 35.0, 3.5, 0.60, 40.0],
-            [`${T.rod} 4`, +1.0, -45.0, 50.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 4`, +1.0, +45.0, 50.0, 0.0, 0.60, 40.0],
             [`${T.rod} 5`, +5.0, +90.0, 40.0, 0.0, 0.60, 40.0],
         ];
     }
@@ -1101,6 +1101,8 @@ function evaluateLureAgainstLine(lureIndex, lineIndex, lureLine, otherLine) {
     const directionKey = `${pairKey}|${lureIndex}->${lineIndex}`;
 
     const lurePoint = lureLine.points[lureLine.points.length - 1];
+    const previousLurePoint =
+        lureLine.previousLurePoint || lureLine.points[lureLine.points.length - 2];
 
     const info = closestLineSegmentInfo(lurePoint, otherLine);
     const distanceM = info.distance;
@@ -1112,31 +1114,97 @@ function evaluateLureAgainstLine(lureIndex, lineIndex, lureLine, otherLine) {
         state = {
             lastSide: currentSide,
             safeSide: currentSide,
-            crossed: false
+            crossed: false,
+            visualSeverity: 0.0,
+            justResolved: false,
+            wasInContact: false
         };
 
         crossingStates.set(directionKey, state);
     }
 
-    if (currentSide !== 0) {
-        if (state.lastSide !== 0 && currentSide !== state.lastSide) {
-            if (!state.crossed) {
-                state.safeSide = state.lastSide;
-                state.crossed = true;
-            } else {
-                if (currentSide === state.safeSide) {
-                    state.crossed = false;
-                }
+    /*
+      Vero attraversamento geometrico:
+      l'esca ha attraversato una porzione della lenza dell'altra canna
+      tra il frame precedente e quello corrente.
+    */
+    const crossingNow =
+        lureSegmentCrossesLine(previousLurePoint, lurePoint, otherLine);
+
+    /*
+      Evita toggle multipli mentre l'esca resta appoggiata/sovrapposta
+      alla stessa lenza per più frame consecutivi.
+    */
+    const crossingEvent = crossingNow && !state.wasInContact;
+    state.wasInContact = crossingNow;
+
+    if (crossingEvent) {
+        if (!state.crossed) {
+            /*
+              Primo attraversamento:
+              salvo il lato sicuro da cui l'esca proveniva.
+            */
+            state.safeSide = state.lastSide !== 0 ? state.lastSide : currentSide;
+            state.crossed = true;
+            state.justResolved = false;
+            state.visualSeverity = 1.0;
+        } else {
+            /*
+              Secondo attraversamento:
+              considero l'incrocio sciolto solo se l'esca è tornata
+              dal lato originario.
+            */
+            if (currentSide === state.safeSide || currentSide === 0) {
+                state.crossed = false;
+                state.justResolved = true;
+                state.visualSeverity = 1.0;
             }
         }
+    }
 
+    if (currentSide !== 0) {
         state.lastSide = currentSide;
     }
 
-    const crossed = state.crossed;
-    const veryClose = distanceM <= LURE_LINE_CROSSED_DISTANCE_M;
+    const veryClose =
+        distanceM <= LURE_LINE_CROSSED_DISTANCE_M;
 
-    if (!(crossed || distanceM <= LURE_LINE_VISIBLE_DISTANCE_M)) {
+    let targetSeverity;
+
+    if (state.crossed || veryClose) {
+        targetSeverity = 1.0;
+    } else {
+        targetSeverity = clamp(
+            1.0 - distanceM / LURE_LINE_WARNING_DISTANCE_M,
+            0.0,
+            1.0
+        );
+    }
+
+    /*
+      Quando l'incrocio viene sciolto, il cursore non sparisce:
+      scende progressivamente da MAX verso il rischio reale.
+    */
+    if (state.justResolved) {
+        state.visualSeverity = Math.max(
+            targetSeverity,
+            state.visualSeverity - 0.025
+        );
+
+        if (state.visualSeverity <= Math.max(targetSeverity, 0.02)) {
+            state.justResolved = false;
+            state.visualSeverity = targetSeverity;
+        }
+    } else {
+        state.visualSeverity = targetSeverity;
+    }
+
+    const shouldShow =
+        state.crossed ||
+        state.justResolved ||
+        distanceM <= LURE_LINE_VISIBLE_DISTANCE_M;
+
+    if (!shouldShow) {
         return null;
     }
 
@@ -1145,15 +1213,15 @@ function evaluateLureAgainstLine(lureIndex, lineIndex, lureLine, otherLine) {
         lineRod: otherLine.config.name,
         depth: lureLine.config.trollingDepthM,
         distance: distanceM,
-        crossed: crossed,
+        crossed: state.crossed,
         veryClose: veryClose,
-        severity: crossed || veryClose
+        severity: state.crossed || veryClose
             ? 1.0
-            : clamp(
-                1.0 - distanceM / LURE_LINE_WARNING_DISTANCE_M,
-                0.0,
-                1.0
-            )
+            : state.visualSeverity,
+        forceKnob:
+            state.crossed ||
+            state.justResolved ||
+            distanceM <= LURE_LINE_KNOB_VISIBLE_DISTANCE_M
     };
 }
 
@@ -1313,15 +1381,14 @@ function drawCrossingRiskSlider(risk, x, y, width, height, smallScreen) {
     0.0 = distanza >= 1.0 m, giallo, gomitolo fermo a sinistra
     1.0 = distanza <= 0.30 m o lenze incrociate, rosso massimo
     */
-    const severity = risk.crossed || risk.veryClose
-    ? 1.0
-    : clamp(
-        1.0 - risk.distance / LURE_LINE_WARNING_DISTANCE_M,
+    const severity = clamp(
+        Number.isFinite(risk.severity) ? risk.severity : 0.0,
         0.0,
         1.0
     );
 
     const showKnob =
+        risk.forceKnob ||
         risk.crossed ||
         risk.veryClose ||
         risk.distance <= LURE_LINE_KNOB_VISIBLE_DISTANCE_M;
