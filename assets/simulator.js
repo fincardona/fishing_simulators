@@ -262,30 +262,63 @@ function resizeCanvas() {
 
 function defaultRodLayout(n) {
     if (n === 1) {
-        return [[`${T.rod} 1`, 0.0, 0.0, 55.0]];
+        return [[`${T.rod} 1`, 0.0, 0.0, 35.0, 3.5, 0.60, 40.0]];
     }
 
     if (n === 2) {
         return [
-            [`${T.rod} 1`, -1.0, -90.0, 55.0],
-            [`${T.rod} 2`, +1.0, +90.0, 45.0],
+            [`${T.rod} 1`, -1.0, -90.0, 55.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 2`, +1.0, +90.0, 45.0, 0.0, 0.60, 40.0],
         ];
     }
 
     if (n === 3) {
         return [
-            [`${T.rod} 1`, -1.0, -90.0, 45.0],
-            [`${T.rod} 2`, -0.7, 0.0, 35.0],
-            [`${T.rod} 3`, +0.7, +90.0, 55.0],
+            [`${T.rod} 1`, -1.0, -90.0, 45.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 2`, 0.0, 0.0, 35.0, 3.5, 0.60, 40.0],
+            [`${T.rod} 3`, +1.0, +90.0, 55.0, 0.0, 0.60, 40.0],
         ];
     }
 
     if (n === 4) {
         return [
-            [`${T.rod} 1`, -1.0, -90.0, 60.0],
-            [`${T.rod} 2`, -0.7, 0.0, 70.0],
-            [`${T.rod} 3`, +0.7, 0.0, 35.0],
-            [`${T.rod} 4`, +1.0, +90.0, 50.0],
+            [`${T.rod} 1`, -1.0, -90.0, 60.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 2`, -0.5, -30.0, 20.0, 3.5, 0.60, 40.0],
+            [`${T.rod} 3`, +0.5, +30.0, 35.0, 3.5, 0.60, 40.0],
+            [`${T.rod} 4`, +1.0, +90.0, 50.0, 0.0, 0.60, 40.0],
+        ];
+    }
+
+    if (n === 5) {
+        return [
+            [`${T.rod} 1`, -5.0, -90.0, 70.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 2`, -1.0, -45.0, 60.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 3`, 0.0, 0.0, 35.0, 3.5, 0.60, 40.0],
+            [`${T.rod} 4`, +1.0, -45.0, 50.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 5`, +5.0, +90.0, 40.0, 0.0, 0.60, 40.0],
+        ];
+    }
+
+    if (n === 6) {
+        return [
+            [`${T.rod} 1`, -5.0, -90.0, 70.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 2`, -3.0, -60.0, 60.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 3`, -1.0, -30.0, 30.0, 3.5, 0.60, 40.0],
+            [`${T.rod} 4`, +1.0, +30.0, 20.0, 3.5, 0.60, 40.0],
+            [`${T.rod} 5`, +3.0, +60.0, 40.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 6`, +5.0, +90.0, 50.0, 0.0, 0.60, 40.0],
+        ];
+    }
+
+    if (n === 7) {
+        return [
+            [`${T.rod} 1`, -5.0, -90.0, 60.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 2`, -3.0, -60.0, 50.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 3`, -1.0, -30.0, 30.0, 3.5, 0.60, 40.0],
+            [`${T.rod} 4`,  0.0, 0.0, 100.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 5`, +1.0, +30.0, 20.0, 3.5, 0.60, 40.0],
+            [`${T.rod} 6`, +3.0, +60.0, 50.0, 0.0, 0.60, 40.0],
+            [`${T.rod} 7`, +5.0, +90.0, 60.0, 0.0, 0.60, 40.0],
         ];
     }
 
@@ -293,22 +326,39 @@ function defaultRodLayout(n) {
 
     for (let i = 0; i < n; i++) {
         const t = n === 1 ? 0.5 : i / (n - 1);
-        const lateral = -BOAT_WIDTH_M / 2 + t * BOAT_WIDTH_M;
+        const lateral = -5.0 + t * 10.0;
         const angle = -90.0 + t * 180.0;
         const len = 35.0;
-        layout.push([`${T.rod} ${i + 1}`, lateral, angle, len]);
+
+        layout.push([
+            `${T.rod} ${i + 1}`,
+            lateral,
+            angle,
+            len,
+            0.0,
+            0.60,
+            40.0
+        ]);
     }
 
     return layout;
 }
 
-function makeRodConfig(name, lateral, angle, lengthValue) {
+function makeRodConfig(
+    name,
+    lateral,
+    angle,
+    lengthValue,
+    trollingDepthM = 0.0,
+    lineDiameterMm = 0.60,
+    lureMassG = 40.0
+) {
     return {
         name: name,
-        trollingDepthM: 0.0,
+        trollingDepthM: trollingDepthM,
         lineLengthM: lengthValue,
-        lineDiameterMm: 0.60,
-        lureMassG: 40.0,
+        lineDiameterMm: lineDiameterMm,
+        lureMassG: lureMassG,
         rodBaseLateralM: lateral,
         rodAngleDeg: angle,
     };
@@ -456,7 +506,7 @@ function initialiseRods() {
     document.getElementById("numRods").value = n;
 
     rodsConfig = defaultRodLayout(n).map(item =>
-        makeRodConfig(item[0], item[1], item[2], item[3])
+        makeRodConfig(item[0], item[1], item[2], item[3], item[4], item[5], item[6])
     );
 
     renderRodsPanel();
@@ -464,13 +514,21 @@ function initialiseRods() {
 }
 
 function resetToDefaults() {
-    document.getElementById("numRods").value = 4;
+    document.getElementById("numRods").value = 7;
     document.getElementById("initialSpeed").value = DEFAULT_TROLLING_SPEED_KNOTS.toFixed(1);
     document.getElementById("currentSpeed").value = "0.0";
     document.getElementById("currentDirection").value = "0";
 
-    rodsConfig = defaultRodLayout(4).map(item =>
-        makeRodConfig(item[0], item[1], item[2], item[3])
+    rodsConfig = defaultRodLayout(7).map(item =>
+        makeRodConfig(
+            item[0],
+            item[1],
+            item[2],
+            item[3],
+            item[4],
+            item[5],
+            item[6]
+        )
     );
 
     renderRodsPanel();
@@ -489,7 +547,17 @@ function loadChanges() {
         if (i < currentValues.length) {
             newRods.push(currentValues[i]);
         } else {
-            newRods.push(makeRodConfig(layout[i][0], layout[i][1], layout[i][2], layout[i][3]));
+            newRods.push(
+                makeRodConfig(
+                    layout[i][0],
+                    layout[i][1],
+                    layout[i][2],
+                    layout[i][3],
+                    layout[i][4],
+                    layout[i][5],
+                    layout[i][6]
+                )
+            );
         }
     }
 
