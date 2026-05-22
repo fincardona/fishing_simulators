@@ -157,6 +157,13 @@
     */
     const LURE_LINE_CROSSED_DISTANCE_M = 0.30;
 
+    /*
+    Se una coppia è bloccata in MAX ma poi la distanza supera questa soglia,
+    consideriamo l'incrocio risolto anche se il secondo attraversamento geometrico
+    non è stato intercettato frame per frame.
+    */
+    const LURE_LINE_FORCE_UNLOCK_DISTANCE_M = 2.2;
+
     const canvas = document.getElementById("simCanvas");
     const ctx = canvas.getContext("2d");
 
@@ -1234,6 +1241,34 @@
                 startCrossing(j, i);
             } else {
                 tryResolveCrossing(j, i);
+            }
+        }
+
+        /*
+          Fallback anti-blocco:
+          se la coppia è rimasta in MAX ma la distanza è ormai molto oltre
+          la soglia di visualizzazione, probabilmente il riattraversamento non è stato
+          catturato esattamente dal test geometrico tra segmenti.
+
+          In quel caso sblocchiamo e facciamo scendere il gomitolo da MAX,
+          invece di lasciarlo bloccato per sempre.
+        */
+        if (state.locked) {
+            const activeDistance =
+                state.activeLureIndex === i && state.activeLineIndex === j
+                    ? distanceAB
+                    : distanceBA;
+
+            if (activeDistance > LURE_LINE_FORCE_UNLOCK_DISTANCE_M) {
+                state.locked = false;
+                state.justResolved = true;
+                state.visualSeverity = 1.0;
+
+                state.releaseLureIndex = state.activeLureIndex;
+                state.releaseLineIndex = state.activeLineIndex;
+
+                state.activeLureIndex = null;
+                state.activeLineIndex = null;
             }
         }
     
