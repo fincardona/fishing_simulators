@@ -174,6 +174,8 @@ let lines = [];
 let config = null;
 let lastTime = performance.now();
 let crossingStates = new Map();
+let riskSlots = new Map();
+let nextRiskSlot = 0;
 
 const colors = [
     "#ffdc78",
@@ -847,7 +849,10 @@ class Line {
 function resetSimulationWithConfig(appConfig) {
     config = appConfig;
     boat = new Boat(config.initialSpeedKnots);
+
     crossingStates.clear();
+    riskSlots.clear();
+    nextRiskSlot = 0;
 
     const initialCurrent = currentVector(config, boat.heading());
     boat.velocity = add(boat.waterVelocity, initialCurrent);
@@ -1212,9 +1217,9 @@ function evaluateLureAgainstLine(lureIndex, lineIndex, lureLine, otherLine) {
         pairKey: pairKey,
         pairA: Math.min(lureIndex, lineIndex),
         pairB: Math.max(lureIndex, lineIndex),
+        pairLabel: `${lines[Math.min(lureIndex, lineIndex)].config.name} ↔ ${lines[Math.max(lureIndex, lineIndex)].config.name}`,
         lureRod: lureLine.config.name,
         lineRod: otherLine.config.name,
-        pairLabel: `${lines[Math.min(lureIndex, lineIndex)].config.name} ↔ ${lines[Math.max(lureIndex, lineIndex)].config.name}`,
         depth: lureLine.config.trollingDepthM,
         distance: distanceM,
         crossed: state.crossed,
@@ -1307,30 +1312,85 @@ function getLineCrossingRisks() {
     return risks;
 }
 
+function assignRiskSlots(risks) {
+    const activeKeys = new Set(risks.map(risk => risk.pairKey));
+
+    /*
+      Rimuove dagli slot le coppie che non sono più visibili.
+      Gli altri slot non vengono rinumerati: così le righe non scorrono.
+    */
+    for (const key of Array.from(riskSlots.keys())) {
+        if (!activeKeys.has(key)) {
+            riskSlots.delete(key);
+        }
+    }
+
+    /*
+      Le nuove coppie vengono messe nello slot libero più basso.
+      Siccome disegneremo gli slot dal basso verso l'alto,
+      lo slot 0 è quello più basso.
+    */
+    for (const risk of risks) {
+        if (!riskSlots.has(risk.pairKey)) {
+            let slot = 0;
+
+            const occupiedSlots = new Set(riskSlots.values());
+
+            while (occupiedSlots.has(slot)) {
+                slot += 1;
+            }
+
+            riskSlots.set(risk.pairKey, slot);
+            nextRiskSlot = Math.max(nextRiskSlot, slot + 1);
+        }
+
+        risk.slot = riskSlots.get(risk.pairKey);
+    }
+}
+
+function getVisibleRiskSlots(risks, maxItems) {
+    assignRiskSlots(risks);
+
+    /*
+      Mostriamo al massimo maxItems slot.
+      Se ce ne sono più di quanti stanno nel pannello, teniamo quelli più bassi.
+      Questo mantiene stabile la logica "nuovi sopra, primi in basso".
+    */
+    return risks
+        .filter(risk => Number.isFinite(risk.slot))
+        .filter(risk => risk.slot < maxItems);
+}
+
 function drawLineCrossingIndicators(camera) {
     const risks = getLineCrossingRisks();
 
     if (risks.length === 0) {
+        riskSlots.clear();
         return;
     }
 
     const smallScreen = WIDTH < 600;
 
     const maxItems = smallScreen ? 3 : 5;
-    const visibleRisks = risks.slice(0, maxItems);
-    
+    const visibleRisks = getVisibleRiskSlots(risks, maxItems);
+
+    if (visibleRisks.length === 0) {
+        return;
+    }
+
     const cardWidth = smallScreen
         ? Math.min(WIDTH - 20, 360)
         : Math.min(340, WIDTH - 24);
-    
+
     const rowHeight = smallScreen ? 52 : 58;
     const headerHeight = smallScreen ? 34 : 40;
-    const cardHeight = headerHeight + rowHeight * visibleRisks.length + 12;
-    
+
     /*
-      Pannello rischio incrocio in basso a destra.
-      Larghezza circa dimezzata rispetto alla versione precedente.
+      Il pannello mantiene l'altezza massima, così le righe non si muovono
+      quando una coppia appare o sparisce.
     */
+    const cardHeight = headerHeight + rowHeight * maxItems + 12;
+
     const x = WIDTH - cardWidth - (smallScreen ? 10 : 12);
     const y = HEIGHT - cardHeight - (smallScreen ? 10 : 12);
 
@@ -1351,22 +1411,29 @@ function drawLineCrossingIndicators(camera) {
 
     ctx.fillText(`⚠ ${T.crossing_risk}`, x + 14, y + 25);
 
-    if (risks.length > visibleRisks.length) {
+    const hiddenCount = risks.length - visibleRisks.length;
+
+    if (hiddenCount > 0) {
         ctx.font = smallScreen
             ? "bold 12px Arial, sans-serif"
             : "bold 14px Arial, sans-serif";
 
         ctx.fillText(
-            `+${risks.length - visibleRisks.length}`,
+            `+${hiddenCount}`,
             x + cardWidth - 42,
             y + 25
         );
     }
 
-    for (let k = 0; k < visibleRisks.length; k++) {
-        const risk = visibleRisks[k];
+    for (const risk of visibleRisks) {
+        /*
+          slot 0 = riga più bassa
+          slot 1 = riga sopra
+          slot 2 = ancora sopra
+        */
+        const visualRowFromTop = maxItems - 1 - risk.slot;
+        const rowY = y + headerHeight + visualRowFromTop * rowHeight;
 
-        const rowY = y + headerHeight + k * rowHeight;
         drawCrossingRiskSlider(
             risk,
             x + 14,
