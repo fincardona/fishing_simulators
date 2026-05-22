@@ -24,17 +24,19 @@
     <xhtml:link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/" />
   </url>
 
-  <url>
-    <loc>https://fincardona.github.io/fishing_simulators/en/physics.html</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://fincardona.github.io/fishing_simulators/en/physics.html" />
-    <xhtml:link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/fisica.html" />
-  </url>
+<url>
+  <loc>https://fincardona.github.io/fishing_simulators/en/physics.html</loc>
+  <xhtml:link rel="alternate" hreflang="x-default" href="https://fincardona.github.io/fishing_simulators/en/physics.html" />
+  <xhtml:link rel="alternate" hreflang="en" href="https://fincardona.github.io/fishing_simulators/en/physics.html" />
+  <xhtml:link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/fisica.html" />
+</url>
 
-  <url>
-    <loc>https://fincardona.github.io/fishing_simulators/it/fisica.html</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://fincardona.github.io/fishing_simulators/en/physics.html" />
-    <xhtml:link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/fisica.html" />
-  </url>
+<url>
+  <loc>https://fincardona.github.io/fishing_simulators/it/fisica.html</loc>
+  <xhtml:link rel="alternate" hreflang="x-default" href="https://fincardona.github.io/fishing_simulators/en/physics.html" />
+  <xhtml:link rel="alternate" hreflang="en" href="https://fincardona.github.io/fishing_simulators/en/physics.html" />
+  <xhtml:link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/fisica.html" />
+</url>
 
   <url>
     <loc>https://fincardona.github.io/fishing_simulators/privacy.html</loc>
