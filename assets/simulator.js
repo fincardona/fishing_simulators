@@ -502,11 +502,19 @@ function buildAppConfig(rods) {
 }
 
 function initialiseRods() {
-    const n = clamp(parseInt(document.getElementById("numRods").value || "4"), 1, 8);
+    const n = clamp(parseInt(document.getElementById("numRods").value || "7"), 1, 8);
     document.getElementById("numRods").value = n;
 
     rodsConfig = defaultRodLayout(n).map(item =>
-        makeRodConfig(item[0], item[1], item[2], item[3], item[4], item[5], item[6])
+        makeRodConfig(
+            item[0],
+            item[1],
+            item[2],
+            item[3],
+            item[4],
+            item[5],
+            item[6]
+        )
     );
 
     renderRodsPanel();
