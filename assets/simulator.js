@@ -173,8 +173,7 @@ let boat = null;
 let lines = [];
 let config = null;
 let lastTime = performance.now();
-let activeCrossings = new Map();
-let crossingContact = new Map();
+let crossingStates = new Map();
 
 const colors = [
     "#ffdc78",
@@ -841,8 +840,7 @@ class Line {
 function resetSimulationWithConfig(appConfig) {
     config = appConfig;
     boat = new Boat(config.initialSpeedKnots);
-    activeCrossings.clear();
-    crossingContact.clear();
+    crossingStates.clear();
 
     const initialCurrent = currentVector(config, boat.heading());
     boat.velocity = add(boat.waterVelocity, initialCurrent);
@@ -970,6 +968,50 @@ function pointSegmentDistance(point, a, b) {
     return length(sub(point, closest));
 }
 
+function signedSideOfPoint(point, a, b) {
+    const ab = sub(b, a);
+    const ap = sub(point, a);
+
+    const cross = ab.x * ap.y - ab.y * ap.x;
+
+    if (Math.abs(cross) < 1e-9) {
+        return 0;
+    }
+
+    return cross > 0 ? 1 : -1;
+}
+
+function closestLineSegmentInfo(point, otherLine) {
+    let minDistance = Infinity;
+    let bestA = null;
+    let bestB = null;
+
+    for (let i = 1; i < otherLine.points.length - 1; i++) {
+        const a = otherLine.points[i];
+        const b = otherLine.points[i + 1];
+
+        const d = pointSegmentDistance(point, a, b);
+
+        if (d < minDistance) {
+            minDistance = d;
+            bestA = a;
+            bestB = b;
+        }
+    }
+
+    if (!bestA || !bestB) {
+        return {
+            distance: Infinity,
+            side: 0
+        };
+    }
+
+    return {
+        distance: minDistance,
+        side: signedSideOfPoint(point, bestA, bestB)
+    };
+}
+
 function orientation(a, b, c) {
     const value =
         (b.y - a.y) * (c.x - b.x) -
@@ -1051,8 +1093,7 @@ function getLineCrossingRisks() {
     const risks = [];
 
     if (!lines || lines.length < 2) {
-        activeCrossings.clear();
-        crossingContact.clear();
+        crossingStates.clear();
         return risks;
     }
 
@@ -1066,9 +1107,6 @@ function getLineCrossingRisks() {
         }
 
         const lurePoint = lureLine.points[lureLine.points.length - 1];
-        const previousLurePoint =
-            lureLine.previousLurePoint || lureLine.points[lureLine.points.length - 2];
-
         const depthA = lureLine.config.trollingDepthM;
 
         for (let j = 0; j < lines.length; j++) {
@@ -1089,55 +1127,52 @@ function getLineCrossingRisks() {
             const pairKey = `${i}->${j}`;
             seenPairs.add(pairKey);
 
-            const distanceM = minLureDistanceToLine(lurePoint, otherLine);
+            const info = closestLineSegmentInfo(lurePoint, otherLine);
+            const distanceM = info.distance;
+            const currentSide = info.side;
 
-            /*
-              crossingNow significa: l'esca della canna i ha attraversato
-              la lenza filata in acqua della canna j in questo frame.
-            */
-            const crossingNow =
-                lureSegmentCrossesLine(previousLurePoint, lurePoint, otherLine);
+            let state = crossingStates.get(pairKey);
 
-            /*
-              Stato:
-              - false / assente: nessun incrocio attivo
-              - true: l'esca ha già attraversato quella lenza e deve
-                ri-attraversarla per sciogliere l'incrocio
-            */
-            const wasCrossed = activeCrossings.get(pairKey) === true;
-            const wasInContact = crossingContact.get(pairKey) === true;
-            
-            /*
-                Evita toggle multipli mentre l'esca resta appoggiata o sovrapposta alla lenza.
-                Un nuovo attraversamento viene contato solo quando crossingNow passa da false a true.
-            */
-            const crossingEvent = crossingNow && !wasInContact;
-            
-            if (crossingNow) {
-                crossingContact.set(pairKey, true);
-            } else {
-                crossingContact.delete(pairKey);
+            if (!state) {
+                state = {
+                    lastSide: currentSide,
+                    safeSide: currentSide,
+                    crossed: false
+                };
+
+                crossingStates.set(pairKey, state);
             }
-            
-            let crossed = wasCrossed;
-            
-            if (crossingEvent) {
-                if (wasCrossed) {
-                    /*
-                        Secondo attraversamento reale:
-                        incrocio sciolto.
-                    */
-                    activeCrossings.delete(pairKey);
-                    crossed = false;
-                } else {
-                    /*
-                        Primo attraversamento reale:
-                        incrocio attivo.
-                    */
-                    activeCrossings.set(pairKey, true);
-                    crossed = true;
+
+            /*
+              Aggiorna il lato solo se è chiaramente definito.
+              Quando currentSide = 0 significa che l'esca è praticamente
+              sulla lenza: non decidiamo ancora se sia tornata dall'altra parte.
+            */
+            if (currentSide !== 0) {
+                if (state.lastSide !== 0 && currentSide !== state.lastSide) {
+                    if (!state.crossed) {
+                        /*
+                          Primo passaggio da un lato all'altro:
+                          l'incrocio si attiva e resta MAX.
+                          Il lato sicuro è quello da cui l'esca proveniva.
+                        */
+                        state.safeSide = state.lastSide;
+                        state.crossed = true;
+                    } else {
+                        /*
+                          Se l'esca torna sul lato sicuro iniziale,
+                          l'incrocio è sciolto.
+                        */
+                        if (currentSide === state.safeSide) {
+                            state.crossed = false;
+                        }
+                    }
                 }
+
+                state.lastSide = currentSide;
             }
+
+            const crossed = state.crossed;
 
             const veryClose =
                 distanceM <= LURE_LINE_CROSSED_DISTANCE_M;
@@ -1145,7 +1180,7 @@ function getLineCrossingRisks() {
             /*
               Mostra lo slider se:
               - l'incrocio è attivo;
-              - oppure l'esca è entro la distanza di warning.
+              - oppure l'esca è entro 2 m dalla lenza.
             */
             if (crossed || distanceM <= LURE_LINE_VISIBLE_DISTANCE_M) {
                 risks.push({
@@ -1171,15 +1206,9 @@ function getLineCrossingRisks() {
       Pulizia: se una coppia non esiste più perché hai cambiato numero di canne,
       profondità o configurazione, rimuovila dalla memoria.
     */
-    for (const key of activeCrossings.keys()) {
+    for (const key of crossingStates.keys()) {
         if (!seenPairs.has(key)) {
-            activeCrossings.delete(key);
-        }
-    }
-    
-    for (const key of crossingContact.keys()) {
-        if (!seenPairs.has(key)) {
-            crossingContact.delete(key);
+            crossingStates.delete(key);
         }
     }
 
