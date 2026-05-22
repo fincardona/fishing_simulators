@@ -1084,21 +1084,27 @@ function minLureDistanceToLine(lurePoint, otherLine) {
     return minDistance;
 }
 
-function lureSegmentCrossesLine(lureSegmentStart, lureSegmentEnd, otherLine) {
-    /*
-      Controlla se il tratto finale percorso dall'esca incrocia una delle
-      porzioni della lenza dell'altra canna.
-    */
+function lureSegmentCrossingInfo(lureSegmentStart, lureSegmentEnd, otherLine) {
     for (let i = 1; i < otherLine.points.length - 1; i++) {
         const a = otherLine.points[i];
         const b = otherLine.points[i + 1];
 
         if (segmentsIntersect(lureSegmentStart, lureSegmentEnd, a, b)) {
-            return true;
+            return {
+                crossed: true,
+                a: {...a},
+                b: {...b},
+                segmentIndex: i
+            };
         }
     }
 
-    return false;
+    return {
+        crossed: false,
+        a: null,
+        b: null,
+        segmentIndex: -1
+    };
 }
 
 function evaluateLureAgainstLine(lureIndex, lineIndex, lureLine, otherLine) {
@@ -1122,23 +1128,29 @@ function evaluateLureAgainstLine(lureIndex, lineIndex, lureLine, otherLine) {
             crossed: false,
             visualSeverity: 0.0,
             justResolved: false,
-            wasInContact: false
+            wasInContact: false,
+            crossingA: null,
+            crossingB: null
         };
 
         crossingStates.set(directionKey, state);
     }
 
     /*
-      Vero attraversamento geometrico:
-      l'esca ha attraversato una porzione della lenza dell'altra canna
-      tra il frame precedente e quello corrente.
+      Cerchiamo un vero attraversamento geometrico della lenza.
+      Questa funzione restituisce anche il segmento attraversato.
     */
-    const crossingNow =
-        lureSegmentCrossesLine(previousLurePoint, lurePoint, otherLine);
+    const crossingInfo = lureSegmentCrossingInfo(
+        previousLurePoint,
+        lurePoint,
+        otherLine
+    );
+
+    const crossingNow = crossingInfo.crossed;
 
     /*
-      Evita toggle multipli mentre l'esca resta appoggiata/sovrapposta
-      alla stessa lenza per più frame consecutivi.
+      Evita toggle multipli mentre l'esca resta sovrapposta alla lenza
+      per più frame consecutivi.
     */
     const crossingEvent = crossingNow && !state.wasInContact;
     state.wasInContact = crossingNow;
@@ -1147,22 +1159,57 @@ function evaluateLureAgainstLine(lureIndex, lineIndex, lureLine, otherLine) {
         if (!state.crossed) {
             /*
               Primo attraversamento:
-              salvo il lato sicuro da cui l'esca proveniva.
+              salvo il segmento attraversato e il lato originario.
+              Da questo momento in poi MAX resta attivo finché l'esca
+              non torna dal lato originario rispetto a QUESTO segmento.
             */
-            state.safeSide = state.lastSide !== 0 ? state.lastSide : currentSide;
+            const sideBeforeCrossing = signedSideOfPoint(
+                previousLurePoint,
+                crossingInfo.a,
+                crossingInfo.b
+            );
+
+            state.safeSide = sideBeforeCrossing !== 0
+                ? sideBeforeCrossing
+                : currentSide;
+
+            state.crossingA = {...crossingInfo.a};
+            state.crossingB = {...crossingInfo.b};
+
             state.crossed = true;
             state.justResolved = false;
             state.visualSeverity = 1.0;
         } else {
             /*
               Secondo attraversamento:
-              considero l'incrocio sciolto solo se l'esca è tornata
-              dal lato originario.
+              non basta attraversare una lenza qualunque.
+              Verifichiamo se l'esca è tornata dal lato originario
+              rispetto al segmento salvato al primo attraversamento.
             */
-            if (currentSide === state.safeSide || currentSide === 0) {
-                state.crossed = false;
-                state.justResolved = true;
-                state.visualSeverity = 1.0;
+            if (state.crossingA && state.crossingB) {
+                const sideNow = signedSideOfPoint(
+                    lurePoint,
+                    state.crossingA,
+                    state.crossingB
+                );
+
+                if (sideNow === state.safeSide || sideNow === 0) {
+                    state.crossed = false;
+                    state.justResolved = true;
+                    state.visualSeverity = 1.0;
+                    state.crossingA = null;
+                    state.crossingB = null;
+                }
+            } else {
+                /*
+                  Fallback raro: se per qualche motivo non abbiamo il segmento salvato,
+                  usiamo il lato corrente.
+                */
+                if (currentSide === state.safeSide || currentSide === 0) {
+                    state.crossed = false;
+                    state.justResolved = true;
+                    state.visualSeverity = 1.0;
+                }
             }
         }
     }
