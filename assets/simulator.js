@@ -1110,161 +1110,143 @@
     function evaluateRodPair(i, j, lineA, lineB) {
         const pairKey = `${i}<->${j}`;
         const pairLabel = `${lineA.config.name} ↔ ${lineB.config.name}`;
-
+    
         const lureA = lineA.points[lineA.points.length - 1];
         const previousLureA =
             lineA.previousLurePoint || lineA.points[lineA.points.length - 2];
-
+    
         const lureB = lineB.points[lineB.points.length - 1];
         const previousLureB =
             lineB.previousLurePoint || lineB.points[lineB.points.length - 2];
-
+    
         const infoAB = closestLineSegmentInfo(lureA, lineB);
         const infoBA = closestLineSegmentInfo(lureB, lineA);
-
+    
         const distanceAB = infoAB.distance;
         const distanceBA = infoBA.distance;
-
+    
         let state = crossingStates.get(pairKey);
-
+    
         if (!state) {
             state = {
                 locked: false,
                 justResolved: false,
                 visualSeverity: 0.0,
-
+    
+                /*
+                  Direzione che ha generato l'incrocio attivo.
+                  Esempio:
+                  activeLureIndex = i
+                  activeLineIndex = j
+                  significa: esca della canna i ha attraversato lenza della canna j.
+                */
                 activeLureIndex: null,
                 activeLineIndex: null,
-
-                safeSide: 0,
-                refA: null,
-                refB: null,
-
+    
+                /*
+                  Serve solo per evitare toggle multipli mentre l'esca resta
+                  sovrapposta alla lenza per più frame consecutivi.
+                */
                 wasInContactAB: false,
                 wasInContactBA: false,
-
+    
+                /*
+                  Direzione usata dopo lo sblocco per far scendere il cursore
+                  senza farlo sparire subito.
+                */
                 releaseLureIndex: null,
                 releaseLineIndex: null
             };
-
+    
             crossingStates.set(pairKey, state);
         }
-
+    
         const crossingAB = lureSegmentCrossingInfo(
             previousLureA,
             lureA,
             lineB
         );
-
+    
         const crossingBA = lureSegmentCrossingInfo(
             previousLureB,
             lureB,
             lineA
         );
-
+    
         const eventAB = crossingAB.crossed && !state.wasInContactAB;
         const eventBA = crossingBA.crossed && !state.wasInContactBA;
-
+    
         state.wasInContactAB = crossingAB.crossed;
         state.wasInContactBA = crossingBA.crossed;
-
-        function startCrossing(lureIndex, lineIndex, previousLurePoint, currentLurePoint, crossingInfo) {
-            let sideBefore = signedSideOfPoint(
-                previousLurePoint,
-                crossingInfo.a,
-                crossingInfo.b
-            );
-
-            if (sideBefore === 0) {
-                const sideAfter = signedSideOfPoint(
-                    currentLurePoint,
-                    crossingInfo.a,
-                    crossingInfo.b
-                );
-
-                sideBefore = sideAfter !== 0 ? -sideAfter : 1;
-            }
-
+    
+        function startCrossing(lureIndex, lineIndex) {
             state.locked = true;
             state.justResolved = false;
             state.visualSeverity = 1.0;
-
+    
             state.activeLureIndex = lureIndex;
             state.activeLineIndex = lineIndex;
-
-            state.safeSide = sideBefore;
-            state.refA = {...crossingInfo.a};
-            state.refB = {...crossingInfo.b};
-
+    
             state.releaseLureIndex = null;
             state.releaseLineIndex = null;
         }
-
-        function tryResolveCrossing(lureIndex, lineIndex, currentLurePoint) {
+    
+        function tryResolveCrossing(lureIndex, lineIndex) {
+            /*
+              Sblocchiamo solo se riattraversa la stessa esca
+              sulla stessa lenza che aveva generato il blocco.
+              Non usiamo più il lato, perché il lato rispetto a una lenza mobile
+              può diventare ambiguo.
+            */
             if (
-                !state.locked ||
-                state.activeLureIndex !== lureIndex ||
-                state.activeLineIndex !== lineIndex ||
-                !state.refA ||
-                !state.refB
+                state.locked &&
+                state.activeLureIndex === lureIndex &&
+                state.activeLineIndex === lineIndex
             ) {
-                return;
-            }
-
-            const sideNow = signedSideOfPoint(
-                currentLurePoint,
-                state.refA,
-                state.refB
-            );
-
-            if (sideNow === state.safeSide || sideNow === 0) {
                 state.locked = false;
                 state.justResolved = true;
                 state.visualSeverity = 1.0;
-
+    
                 state.releaseLureIndex = lureIndex;
                 state.releaseLineIndex = lineIndex;
-
+    
                 state.activeLureIndex = null;
                 state.activeLineIndex = null;
-
-                state.refA = null;
-                state.refB = null;
-                state.safeSide = 0;
             }
         }
-
+    
         /*
-        Primo attraversamento: la coppia entra in MAX.
-        Secondo attraversamento della stessa esca sulla stessa lenza:
-        la coppia si sblocca e lo slider inizia a scendere.
+          Primo attraversamento: blocca la coppia in MAX.
+          Secondo attraversamento della stessa direzione: sblocca la coppia.
+          Attraversamenti dell'altra direzione mentre la coppia è bloccata
+          vengono ignorati, così non cambiano lo stato in modo ambiguo.
         */
         if (eventAB) {
             if (!state.locked) {
-                startCrossing(i, j, previousLureA, lureA, crossingAB);
+                startCrossing(i, j);
             } else {
-                tryResolveCrossing(i, j, lureA);
+                tryResolveCrossing(i, j);
             }
         }
-
+    
         if (eventBA) {
             if (!state.locked) {
-                startCrossing(j, i, previousLureB, lureB, crossingBA);
+                startCrossing(j, i);
             } else {
-                tryResolveCrossing(j, i, lureB);
+                tryResolveCrossing(j, i);
             }
         }
-
+    
         /*
-        Caso 1: coppia bloccata.
-        Deve restare sempre MAX, indipendentemente dalla distanza.
+          Caso 1: coppia bloccata.
+          Deve restare MAX indipendentemente dalla distanza.
         */
         if (state.locked) {
             const activeDistance =
                 state.activeLureIndex === i && state.activeLineIndex === j
                     ? distanceAB
                     : distanceBA;
-
+    
             return {
                 pairKey: pairKey,
                 pairA: i,
@@ -1280,41 +1262,41 @@
                 forceKnob: true
             };
         }
-
+    
         /*
-        Caso 2: incrocio appena risolto.
-        Il gomitolo NON deve sparire subito: scende da MAX verso il rischio reale.
+          Caso 2: incrocio appena risolto.
+          Il gomitolo scende progressivamente da MAX verso il rischio reale.
         */
         if (state.justResolved) {
             const releaseDistance =
                 state.releaseLureIndex === i && state.releaseLineIndex === j
                     ? distanceAB
                     : distanceBA;
-
+    
             const targetSeverity = clamp(
                 1.0 - releaseDistance / LURE_LINE_WARNING_DISTANCE_M,
                 0.0,
                 1.0
             );
-
+    
             state.visualSeverity = Math.max(
                 targetSeverity,
                 state.visualSeverity - 0.025
             );
-
+    
             if (state.visualSeverity <= Math.max(targetSeverity, 0.02)) {
                 state.justResolved = false;
                 state.visualSeverity = targetSeverity;
             }
-
+    
             const shouldShow =
                 state.justResolved ||
                 releaseDistance <= LURE_LINE_VISIBLE_DISTANCE_M;
-
+    
             if (!shouldShow) {
                 return null;
             }
-
+    
             return {
                 pairKey: pairKey,
                 pairA: i,
@@ -1330,36 +1312,36 @@
                 forceKnob: true
             };
         }
-
+    
         /*
-        Caso 3: nessun incrocio attivo.
-        Mostriamo il rischio normale scegliendo la direzione più pericolosa,
-        ma sempre come UNA SOLA riga per coppia.
+          Caso 3: nessun incrocio attivo.
+          Rischio normale: una sola riga per coppia, scegliendo la direzione
+          più pericolosa.
         */
         const severityAB = clamp(
             1.0 - distanceAB / LURE_LINE_WARNING_DISTANCE_M,
             0.0,
             1.0
         );
-
+    
         const severityBA = clamp(
             1.0 - distanceBA / LURE_LINE_WARNING_DISTANCE_M,
             0.0,
             1.0
         );
-
+    
         const useAB = severityAB >= severityBA;
-
+    
         const selectedDistance = useAB ? distanceAB : distanceBA;
         const selectedSeverity = useAB ? severityAB : severityBA;
-
+    
         if (selectedDistance > LURE_LINE_VISIBLE_DISTANCE_M) {
             return null;
         }
-
+    
         const veryClose =
             selectedDistance <= LURE_LINE_CROSSED_DISTANCE_M;
-
+    
         return {
             pairKey: pairKey,
             pairA: i,
