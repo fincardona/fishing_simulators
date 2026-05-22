@@ -361,14 +361,22 @@ footer a {
 .formula {
   overflow-x: auto;
   margin: 18px 0;
-  padding: 16px;
+  padding: 16px 18px;
   border-radius: 14px;
   background: rgba(0, 0, 0, 0.20);
   border: 1px solid rgba(255, 255, 255, 0.14);
-  font-family: "Times New Roman", Georgia, serif;
-  font-size: 1.25rem;
   color: #ffffff;
-  white-space: nowrap;
+}
+
+.formula mjx-container {
+  margin: 0 !important;
+  color: #ffffff;
+  font-size: 1.15em;
+  min-width: max-content;
+}
+
+.formula mjx-container[jax="SVG"] svg {
+  color: #ffffff;
 }
 
 .legal-page .formula code {
@@ -475,6 +483,10 @@ footer a {
   }
 
   .formula {
-    font-size: 1.05rem;
+    padding: 14px;
+  }
+
+  .formula mjx-container {
+    font-size: 1.02em;
   }
 }

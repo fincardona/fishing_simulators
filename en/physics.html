@@ -10,6 +10,19 @@
   <link rel="alternate" hreflang="it" href="https://fincardona.github.io/fishing_simulators/it/fisica.html">
   <link rel="alternate" hreflang="x-default" href="https://fincardona.github.io/fishing_simulators/en/physics.html">
   <link rel="stylesheet" href="../assets/styles.css">
+
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 
 <body>
@@ -46,7 +59,9 @@
     </p>
 
     <div class="formula">
-      1\ \mathrm{knot} = 0.514444\ \mathrm{m\,s^{-1}}
+      \[
+        1\,\mathrm{knot} = 0.514444\,\mathrm{m\,s^{-1}}
+      \]
     </div>
 
     <p>
@@ -56,16 +71,18 @@
     </p>
 
     <div class="formula">
-      \mathbf{v}_{boat,water}^{\,new}
-      =
-      \mathbf{v}_{boat,water}
-      +
-      \left(
-      \mathbf{v}_{target}
-      -
-      \mathbf{v}_{boat,water}
-      \right)
-      k\,\Delta t
+      \[
+        \mathbf{v}_{\mathrm{boat,water}}^{\,\mathrm{new}}
+        =
+        \mathbf{v}_{\mathrm{boat,water}}
+        +
+        \left(
+        \mathbf{v}_{\mathrm{target}}
+        -
+        \mathbf{v}_{\mathrm{boat,water}}
+        \right)
+        k\,\Delta t
+      \]
     </div>
 
     <p>
@@ -77,11 +94,13 @@
     </p>
 
     <div class="formula">
-      \mathbf{v}_{boat,ground}
-      =
-      \mathbf{v}_{boat,water}
-      +
-      \mathbf{v}_{current}
+      \[
+        \mathbf{v}_{\mathrm{boat,ground}}
+        =
+        \mathbf{v}_{\mathrm{boat,water}}
+        +
+        \mathbf{v}_{\mathrm{current}}
+      \]
     </div>
 
     <h2>3. Sea current</h2>
@@ -92,12 +111,14 @@
     </p>
 
     <div class="formula">
-      \mathbf{v}_{current}
-      =
-      V_{current}
-      \left(
-      \cos\theta,\ \sin\theta
-      \right)
+      \[
+        \mathbf{v}_{\mathrm{current}}
+        =
+        V_{\mathrm{current}}
+        \left(
+        \cos\theta,\ \sin\theta
+        \right)
+      \]
     </div>
 
     <p>
@@ -113,7 +134,9 @@
     </p>
 
     <div class="formula">
-      l_0 = \frac{L}{N}
+      \[
+        l_0 = \frac{L}{N}
+      \]
     </div>
 
     <p>
@@ -135,13 +158,15 @@
     </p>
 
     <div class="formula">
-      \mathbf{d}_{rod}
-      =
-      \mathbf{d}_{back}
-      \cos\alpha
-      +
-      \mathbf{d}_{right}
-      \sin\alpha
+      \[
+        \mathbf{d}_{\mathrm{rod}}
+        =
+        \mathbf{d}_{\mathrm{back}}
+        \cos\alpha
+        +
+        \mathbf{d}_{\mathrm{right}}
+        \sin\alpha
+      \]
     </div>
 
     <p>
@@ -149,11 +174,13 @@
     </p>
 
     <div class="formula">
-      \mathbf{x}_{tip}
-      =
-      \mathbf{x}_{base}
-      +
-      L_{rod}\,\mathbf{d}_{rod}
+      \[
+        \mathbf{x}_{\mathrm{tip}}
+        =
+        \mathbf{x}_{\mathrm{base}}
+        +
+        L_{\mathrm{rod}}\,\mathbf{d}_{\mathrm{rod}}
+      \]
     </div>
 
     <h2>6. Hydrodynamic drag</h2>
@@ -164,11 +191,13 @@
     </p>
 
     <div class="formula">
-      \mathbf{v}_{rel}
-      =
-      \mathbf{v}_{point}
-      -
-      \mathbf{v}_{current}
+      \[
+        \mathbf{v}_{\mathrm{rel}}
+        =
+        \mathbf{v}_{\mathrm{point}}
+        -
+        \mathbf{v}_{\mathrm{current}}
+      \]
     </div>
 
     <p>
@@ -176,18 +205,18 @@
     </p>
 
     <div class="formula">
-      F_D
-      =
-      \frac{1}{2}
-      \rho
-      C_D
-      A
-      |\mathbf{v}_{rel}|^2
+      \[
+        F_D
+        =
+        \frac{1}{2}
+        \rho
+        C_D
+        A
+        \left|\mathbf{v}_{\mathrm{rel}}\right|^2
+      \]
     </div>
 
-    <p>
-      where:
-    </p>
+    <p>where:</p>
 
     <ul>
       <li><code>ρ</code> is the density of seawater;</li>
@@ -201,11 +230,14 @@
     </p>
 
     <div class="formula">
-      \mathbf{F}_D
-      =
-      -
-      F_D
-      \frac{\mathbf{v}_{rel}}{|\mathbf{v}_{rel}|}
+      \[
+        \mathbf{F}_D
+        =
+        -
+        F_D
+        \frac{\mathbf{v}_{\mathrm{rel}}}
+        {\left|\mathbf{v}_{\mathrm{rel}}\right|}
+      \]
     </div>
 
     <h2>7. Effect of line diameter</h2>
@@ -216,9 +248,11 @@
     </p>
 
     <div class="formula">
-      A_{line}
-      \approx
-      d_{line}\,l_0
+      \[
+        A_{\mathrm{line}}
+        \approx
+        d_{\mathrm{line}}\,l_0
+      \]
     </div>
 
     <p>
@@ -242,9 +276,11 @@
     </p>
 
     <div class="formula">
-      m_{lure}
-      =
-      \frac{m_{lure,g}}{1000}
+      \[
+        m_{\mathrm{lure}}
+        =
+        \frac{m_{\mathrm{lure,g}}}{1000}
+      \]
     </div>
 
     <p>
@@ -252,14 +288,16 @@
     </p>
 
     <div class="formula">
-      m_{eff,last}
-      =
-      m_{line}
-      \left(
-      1 + \frac{D}{25}
-      \right)
-      +
-      m_{lure}
+      \[
+        m_{\mathrm{eff,last}}
+        =
+        m_{\mathrm{line}}
+        \left(
+        1 + \frac{D}{25}
+        \right)
+        +
+        m_{\mathrm{lure}}
+      \]
     </div>
 
     <p>
@@ -276,25 +314,31 @@
     </p>
 
     <div class="formula">
-      \mathbf{a}
-      =
-      \frac{\mathbf{F}}{m}
+      \[
+        \mathbf{a}
+        =
+        \frac{\mathbf{F}}{m}
+      \]
     </div>
 
     <div class="formula">
-      \mathbf{v}^{new}
-      =
-      \mathbf{v}
-      +
-      \mathbf{a}\,\Delta t
+      \[
+        \mathbf{v}^{\mathrm{new}}
+        =
+        \mathbf{v}
+        +
+        \mathbf{a}\,\Delta t
+      \]
     </div>
 
     <div class="formula">
-      \mathbf{x}^{new}
-      =
-      \mathbf{x}
-      +
-      \mathbf{v}^{new}\,\Delta t
+      \[
+        \mathbf{x}^{\mathrm{new}}
+        =
+        \mathbf{x}
+        +
+        \mathbf{v}^{\mathrm{new}}\,\Delta t
+      \]
     </div>
 
     <p>
@@ -309,10 +353,12 @@
     </p>
 
     <div class="formula">
-      (0\ \mathrm{kn}, 0\ \mathrm{m}),\quad
-      (3\ \mathrm{kn}, 5\ \mathrm{m}),\quad
-      (6\ \mathrm{kn}, 15\ \mathrm{m}),\quad
-      (12\ \mathrm{kn}, 30\ \mathrm{m})
+      \[
+        (0\,\mathrm{kn}, 0\,\mathrm{m}),\quad
+        (3\,\mathrm{kn}, 5\,\mathrm{m}),\quad
+        (6\,\mathrm{kn}, 15\,\mathrm{m}),\quad
+        (12\,\mathrm{kn}, 30\,\mathrm{m})
+      \]
     </div>
 
     <p>
