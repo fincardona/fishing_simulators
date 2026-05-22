@@ -543,15 +543,22 @@ function resetToDefaults() {
 }
 
 function loadChanges() {
-    const requestedN = clamp(parseInt(document.getElementById("numRods").value || "4"), 1, 8);
+    const requestedN = clamp(parseInt(document.getElementById("numRods").value || "7"), 1, 8);
     document.getElementById("numRods").value = requestedN;
 
     const currentValues = collectCurrentRodValues();
     const layout = defaultRodLayout(requestedN);
     const newRods = [];
 
+    /*
+      Se il numero di canne cambia, carichiamo il layout default
+      del nuovo numero di canne.
+      Se il numero resta uguale, conserviamo i valori modificati a mano.
+    */
+    const numberChanged = requestedN !== currentValues.length;
+
     for (let i = 0; i < requestedN; i++) {
-        if (i < currentValues.length) {
+        if (!numberChanged && i < currentValues.length) {
             newRods.push(currentValues[i]);
         } else {
             newRods.push(
@@ -1089,6 +1096,67 @@ function lureSegmentCrossesLine(lureSegmentStart, lureSegmentEnd, otherLine) {
     return false;
 }
 
+function evaluateLureAgainstLine(lureIndex, lineIndex, lureLine, otherLine) {
+    const pairKey = `${Math.min(lureIndex, lineIndex)}<->${Math.max(lureIndex, lineIndex)}`;
+    const directionKey = `${pairKey}|${lureIndex}->${lineIndex}`;
+
+    const lurePoint = lureLine.points[lureLine.points.length - 1];
+
+    const info = closestLineSegmentInfo(lurePoint, otherLine);
+    const distanceM = info.distance;
+    const currentSide = info.side;
+
+    let state = crossingStates.get(directionKey);
+
+    if (!state) {
+        state = {
+            lastSide: currentSide,
+            safeSide: currentSide,
+            crossed: false
+        };
+
+        crossingStates.set(directionKey, state);
+    }
+
+    if (currentSide !== 0) {
+        if (state.lastSide !== 0 && currentSide !== state.lastSide) {
+            if (!state.crossed) {
+                state.safeSide = state.lastSide;
+                state.crossed = true;
+            } else {
+                if (currentSide === state.safeSide) {
+                    state.crossed = false;
+                }
+            }
+        }
+
+        state.lastSide = currentSide;
+    }
+
+    const crossed = state.crossed;
+    const veryClose = distanceM <= LURE_LINE_CROSSED_DISTANCE_M;
+
+    if (!(crossed || distanceM <= LURE_LINE_VISIBLE_DISTANCE_M)) {
+        return null;
+    }
+
+    return {
+        lureRod: lureLine.config.name,
+        lineRod: otherLine.config.name,
+        depth: lureLine.config.trollingDepthM,
+        distance: distanceM,
+        crossed: crossed,
+        veryClose: veryClose,
+        severity: crossed || veryClose
+            ? 1.0
+            : clamp(
+                1.0 - distanceM / LURE_LINE_WARNING_DISTANCE_M,
+                0.0,
+                1.0
+            )
+    };
+}
+
 function getLineCrossingRisks() {
     const risks = [];
 
@@ -1100,22 +1168,21 @@ function getLineCrossingRisks() {
     const seenPairs = new Set();
 
     for (let i = 0; i < lines.length; i++) {
-        const lureLine = lines[i];
+        for (let j = i + 1; j < lines.length; j++) {
+            const lineA = lines[i];
+            const lineB = lines[j];
 
-        if (!lureLine.points || lureLine.points.length < 2) {
-            continue;
-        }
-
-        const lurePoint = lureLine.points[lureLine.points.length - 1];
-        const depthA = lureLine.config.trollingDepthM;
-
-        for (let j = 0; j < lines.length; j++) {
-            if (i === j) {
+            if (
+                !lineA.points ||
+                !lineB.points ||
+                lineA.points.length < 2 ||
+                lineB.points.length < 2
+            ) {
                 continue;
             }
 
-            const otherLine = lines[j];
-            const depthB = otherLine.config.trollingDepthM;
+            const depthA = lineA.config.trollingDepthM;
+            const depthB = lineB.config.trollingDepthM;
 
             const sameDepth =
                 Math.abs(depthA - depthB) <= SAME_DEPTH_TOLERANCE_M;
@@ -1124,90 +1191,30 @@ function getLineCrossingRisks() {
                 continue;
             }
 
-            const pairKey = `${i}->${j}`;
+            const pairKey = `${i}<->${j}`;
             seenPairs.add(pairKey);
 
-            const info = closestLineSegmentInfo(lurePoint, otherLine);
-            const distanceM = info.distance;
-            const currentSide = info.side;
+            const riskAB = evaluateLureAgainstLine(i, j, lineA, lineB);
+            const riskBA = evaluateLureAgainstLine(j, i, lineB, lineA);
 
-            let state = crossingStates.get(pairKey);
+            let selectedRisk = null;
 
-            if (!state) {
-                state = {
-                    lastSide: currentSide,
-                    safeSide: currentSide,
-                    crossed: false
-                };
-
-                crossingStates.set(pairKey, state);
+            if (riskAB && riskBA) {
+                selectedRisk = riskAB.severity >= riskBA.severity ? riskAB : riskBA;
+            } else if (riskAB) {
+                selectedRisk = riskAB;
+            } else if (riskBA) {
+                selectedRisk = riskBA;
             }
 
-            /*
-              Aggiorna il lato solo se è chiaramente definito.
-              Quando currentSide = 0 significa che l'esca è praticamente
-              sulla lenza: non decidiamo ancora se sia tornata dall'altra parte.
-            */
-            if (currentSide !== 0) {
-                if (state.lastSide !== 0 && currentSide !== state.lastSide) {
-                    if (!state.crossed) {
-                        /*
-                          Primo passaggio da un lato all'altro:
-                          l'incrocio si attiva e resta MAX.
-                          Il lato sicuro è quello da cui l'esca proveniva.
-                        */
-                        state.safeSide = state.lastSide;
-                        state.crossed = true;
-                    } else {
-                        /*
-                          Se l'esca torna sul lato sicuro iniziale,
-                          l'incrocio è sciolto.
-                        */
-                        if (currentSide === state.safeSide) {
-                            state.crossed = false;
-                        }
-                    }
-                }
-
-                state.lastSide = currentSide;
-            }
-
-            const crossed = state.crossed;
-
-            const veryClose =
-                distanceM <= LURE_LINE_CROSSED_DISTANCE_M;
-
-            /*
-              Mostra lo slider se:
-              - l'incrocio è attivo;
-              - oppure l'esca è entro 2 m dalla lenza.
-            */
-            if (crossed || distanceM <= LURE_LINE_VISIBLE_DISTANCE_M) {
-                risks.push({
-                    lureRod: lureLine.config.name,
-                    lineRod: otherLine.config.name,
-                    depth: depthA,
-                    distance: distanceM,
-                    crossed: crossed,
-                    veryClose: veryClose,
-                    severity: crossed || veryClose
-                        ? 1.0
-                        : clamp(
-                            1.0 - distanceM / LURE_LINE_WARNING_DISTANCE_M,
-                            0.0,
-                            1.0
-                        )
-                });
+            if (selectedRisk) {
+                risks.push(selectedRisk);
             }
         }
     }
 
-    /*
-      Pulizia: se una coppia non esiste più perché hai cambiato numero di canne,
-      profondità o configurazione, rimuovila dalla memoria.
-    */
     for (const key of crossingStates.keys()) {
-        if (!seenPairs.has(key)) {
+        if (!seenPairs.has(key.split("|")[0])) {
             crossingStates.delete(key);
         }
     }
@@ -1322,7 +1329,7 @@ function drawCrossingRiskSlider(risk, x, y, width, height, smallScreen) {
     const title = risk.crossed ? T.crossing_active : T.crossing_risk;
 
     const label =
-        `${title}: ${risk.lureRod} → ${risk.lineRod}`;
+    `${title}: ${risk.lureRod} ↔ ${risk.lineRod}`;
 
     const details =
         `${T.distance_label}: ${risk.distance.toFixed(2)} m · ` +
