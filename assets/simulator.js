@@ -162,7 +162,7 @@
     consideriamo l'incrocio risolto anche se il secondo attraversamento geometrico
     non è stato intercettato frame per frame.
     */
-    const LURE_LINE_FORCE_UNLOCK_DISTANCE_M = 2.2;
+    const LURE_LINE_FORCE_UNLOCK_DISTANCE_M = 4;
 
     const canvas = document.getElementById("simCanvas");
     const ctx = canvas.getContext("2d");
@@ -1141,28 +1141,18 @@
                 visualSeverity: 0.0,
     
                 /*
-                  Direzione che ha generato l'incrocio attivo.
-                  Esempio:
-                  activeLureIndex = i
-                  activeLineIndex = j
-                  significa: esca della canna i ha attraversato lenza della canna j.
+                  Stato unico della coppia.
+                  Non importa se l'attraversamento è A -> B o B -> A.
+                  La coppia si blocca al primo attraversamento e si sblocca
+                  al successivo attraversamento reale della stessa coppia.
                 */
-                activeLureIndex: null,
-                activeLineIndex: null,
+                wasInContact: false,
     
                 /*
-                  Serve solo per evitare toggle multipli mentre l'esca resta
-                  sovrapposta alla lenza per più frame consecutivi.
+                  Dopo lo sblocco usiamo questa distanza per far scendere
+                  il cursore senza farlo sparire subito.
                 */
-                wasInContactAB: false,
-                wasInContactBA: false,
-    
-                /*
-                  Direzione usata dopo lo sblocco per far scendere il cursore
-                  senza farlo sparire subito.
-                */
-                releaseLureIndex: null,
-                releaseLineIndex: null
+                releaseDistance: Infinity
             };
     
             crossingStates.set(pairKey, state);
@@ -1180,96 +1170,58 @@
             lineA
         );
     
-        const eventAB = crossingAB.crossed && !state.wasInContactAB;
-        const eventBA = crossingBA.crossed && !state.wasInContactBA;
+        /*
+          Conta come "contatto geometrico della coppia" qualunque attraversamento:
+          - esca A attraversa lenza B
+          - esca B attraversa lenza A
     
-        state.wasInContactAB = crossingAB.crossed;
-        state.wasInContactBA = crossingBA.crossed;
+          Non ci interessa il verso assoluto.
+        */
+        const contactNow = crossingAB.crossed || crossingBA.crossed;
     
-        function startCrossing(lureIndex, lineIndex) {
-            state.locked = true;
-            state.justResolved = false;
+        /*
+          Evita toggle multipli mentre le due lenze restano sovrapposte
+          per più frame consecutivi.
+        */
+        const crossingEvent = contactNow && !state.wasInContact;
+        state.wasInContact = contactNow;
+    
+        /*
+          Distanza rappresentativa della coppia: prendiamo la più pericolosa.
+        */
+        const selectedDistance = Math.min(distanceAB, distanceBA);
+    
+        if (crossingEvent) {
+            if (!state.locked) {
+                /*
+                  Primo attraversamento: la coppia entra in MAX.
+                */
+                state.locked = true;
+                state.justResolved = false;
+                state.visualSeverity = 1.0;
+                state.releaseDistance = selectedDistance;
+            } else {
+                /*
+                  Attraversamento successivo della stessa coppia:
+                  la coppia si sblocca, indipendentemente dal verso rilevato.
+                */
+                state.locked = false;
+                state.justResolved = true;
+                state.visualSeverity = 1.0;
+                state.releaseDistance = selectedDistance;
+            }
+        }
+    
+        /*
+          Fallback anti-blocco.
+          Lo terrei, ma più prudente di prima: invece di 2.2 m metterei 4.0 m.
+          Serve solo se il secondo attraversamento geometrico viene perso tra due frame.
+        */
+        if (state.locked && selectedDistance > LURE_LINE_FORCE_UNLOCK_DISTANCE_M) {
+            state.locked = false;
+            state.justResolved = true;
             state.visualSeverity = 1.0;
-    
-            state.activeLureIndex = lureIndex;
-            state.activeLineIndex = lineIndex;
-    
-            state.releaseLureIndex = null;
-            state.releaseLineIndex = null;
-        }
-    
-        function tryResolveCrossing(lureIndex, lineIndex) {
-            /*
-              Sblocchiamo solo se riattraversa la stessa esca
-              sulla stessa lenza che aveva generato il blocco.
-              Non usiamo più il lato, perché il lato rispetto a una lenza mobile
-              può diventare ambiguo.
-            */
-            if (
-                state.locked &&
-                state.activeLureIndex === lureIndex &&
-                state.activeLineIndex === lineIndex
-            ) {
-                state.locked = false;
-                state.justResolved = true;
-                state.visualSeverity = 1.0;
-    
-                state.releaseLureIndex = lureIndex;
-                state.releaseLineIndex = lineIndex;
-    
-                state.activeLureIndex = null;
-                state.activeLineIndex = null;
-            }
-        }
-    
-        /*
-          Primo attraversamento: blocca la coppia in MAX.
-          Secondo attraversamento della stessa direzione: sblocca la coppia.
-          Attraversamenti dell'altra direzione mentre la coppia è bloccata
-          vengono ignorati, così non cambiano lo stato in modo ambiguo.
-        */
-        if (eventAB) {
-            if (!state.locked) {
-                startCrossing(i, j);
-            } else {
-                tryResolveCrossing(i, j);
-            }
-        }
-    
-        if (eventBA) {
-            if (!state.locked) {
-                startCrossing(j, i);
-            } else {
-                tryResolveCrossing(j, i);
-            }
-        }
-
-        /*
-          Fallback anti-blocco:
-          se la coppia è rimasta in MAX ma la distanza è ormai molto oltre
-          la soglia di visualizzazione, probabilmente il riattraversamento non è stato
-          catturato esattamente dal test geometrico tra segmenti.
-
-          In quel caso sblocchiamo e facciamo scendere il gomitolo da MAX,
-          invece di lasciarlo bloccato per sempre.
-        */
-        if (state.locked) {
-            const activeDistance =
-                state.activeLureIndex === i && state.activeLineIndex === j
-                    ? distanceAB
-                    : distanceBA;
-
-            if (activeDistance > LURE_LINE_FORCE_UNLOCK_DISTANCE_M) {
-                state.locked = false;
-                state.justResolved = true;
-                state.visualSeverity = 1.0;
-
-                state.releaseLureIndex = state.activeLureIndex;
-                state.releaseLineIndex = state.activeLineIndex;
-
-                state.activeLureIndex = null;
-                state.activeLineIndex = null;
-            }
+            state.releaseDistance = selectedDistance;
         }
     
         /*
@@ -1277,11 +1229,6 @@
           Deve restare MAX indipendentemente dalla distanza.
         */
         if (state.locked) {
-            const activeDistance =
-                state.activeLureIndex === i && state.activeLineIndex === j
-                    ? distanceAB
-                    : distanceBA;
-    
             return {
                 pairKey: pairKey,
                 pairA: i,
@@ -1290,7 +1237,7 @@
                 lureRod: pairLabel,
                 lineRod: "",
                 depth: lineA.config.trollingDepthM,
-                distance: activeDistance,
+                distance: selectedDistance,
                 crossed: true,
                 veryClose: true,
                 severity: 1.0,
@@ -1303,13 +1250,12 @@
           Il gomitolo scende progressivamente da MAX verso il rischio reale.
         */
         if (state.justResolved) {
-            const releaseDistance =
-                state.releaseLureIndex === i && state.releaseLineIndex === j
-                    ? distanceAB
-                    : distanceBA;
+            const releaseDistance = Number.isFinite(state.releaseDistance)
+                ? state.releaseDistance
+                : selectedDistance;
     
             const targetSeverity = clamp(
-                1.0 - releaseDistance / LURE_LINE_WARNING_DISTANCE_M,
+                1.0 - selectedDistance / LURE_LINE_WARNING_DISTANCE_M,
                 0.0,
                 1.0
             );
@@ -1322,11 +1268,12 @@
             if (state.visualSeverity <= Math.max(targetSeverity, 0.02)) {
                 state.justResolved = false;
                 state.visualSeverity = targetSeverity;
+                state.releaseDistance = Infinity;
             }
     
             const shouldShow =
                 state.justResolved ||
-                releaseDistance <= LURE_LINE_VISIBLE_DISTANCE_M;
+                selectedDistance <= LURE_LINE_VISIBLE_DISTANCE_M;
     
             if (!shouldShow) {
                 return null;
@@ -1340,9 +1287,9 @@
                 lureRod: pairLabel,
                 lineRod: "",
                 depth: lineA.config.trollingDepthM,
-                distance: releaseDistance,
+                distance: selectedDistance,
                 crossed: false,
-                veryClose: releaseDistance <= LURE_LINE_CROSSED_DISTANCE_M,
+                veryClose: selectedDistance <= LURE_LINE_CROSSED_DISTANCE_M,
                 severity: state.visualSeverity,
                 forceKnob: true
             };
@@ -1350,25 +1297,13 @@
     
         /*
           Caso 3: nessun incrocio attivo.
-          Rischio normale: una sola riga per coppia, scegliendo la direzione
-          più pericolosa.
+          Rischio normale della coppia.
         */
-        const severityAB = clamp(
-            1.0 - distanceAB / LURE_LINE_WARNING_DISTANCE_M,
+        const selectedSeverity = clamp(
+            1.0 - selectedDistance / LURE_LINE_WARNING_DISTANCE_M,
             0.0,
             1.0
         );
-    
-        const severityBA = clamp(
-            1.0 - distanceBA / LURE_LINE_WARNING_DISTANCE_M,
-            0.0,
-            1.0
-        );
-    
-        const useAB = severityAB >= severityBA;
-    
-        const selectedDistance = useAB ? distanceAB : distanceBA;
-        const selectedSeverity = useAB ? severityAB : severityBA;
     
         if (selectedDistance > LURE_LINE_VISIBLE_DISTANCE_M) {
             return null;
