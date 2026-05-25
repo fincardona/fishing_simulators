@@ -490,3 +490,8 @@ footer a {
     font-size: 1.02em;
   }
 }
+
+.fuel,
+.support-note {
+  display: none;
+}
