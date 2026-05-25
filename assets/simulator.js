@@ -1152,13 +1152,15 @@
         if (!state) {
             state = {
                 locked: false,
+                crossingCount: 0,
                 justResolved: false,
                 visualSeverity: 0.0,
     
                 /*
-                  Direzione che ha generato l'incrocio:
+                  Direzione usata solo per mostrare la distanza:
                   i -> j significa: segmento finale della canna i
                   ha attraversato la lenza della canna j.
+                  Lo sblocco resta invece legato alla coppia non ordinata.
                 */
                 activeLureIndex: null,
                 activeLineIndex: null,
@@ -1180,6 +1182,10 @@
     
             crossingStates.set(pairKey, state);
         }
+
+        if (!Number.isFinite(state.crossingCount)) {
+            state.crossingCount = state.locked ? 1 : 0;
+        }
     
         /*
           Controllo corretto:
@@ -1197,6 +1203,7 @@
     
         function startCrossing(lureIndex, lineIndex) {
             state.locked = true;
+            state.crossingCount = 1;
             state.justResolved = false;
             state.visualSeverity = 1.0;
     
@@ -1207,46 +1214,35 @@
             state.releaseLineIndex = null;
         }
     
-        function tryResolveCrossing(lureIndex, lineIndex) {
-            /*
-              Sblocchiamo solo se riattraversa la stessa direzione
-              che aveva generato il blocco.
-            */
-            if (
-                state.locked &&
-                state.activeLureIndex === lureIndex &&
-                state.activeLineIndex === lineIndex
-            ) {
-                state.locked = false;
-                state.justResolved = true;
-                state.visualSeverity = 1.0;
-    
-                state.releaseLureIndex = lureIndex;
-                state.releaseLineIndex = lineIndex;
-    
-                state.activeLureIndex = null;
-                state.activeLineIndex = null;
-            }
+        function resolveCrossing(lureIndex, lineIndex) {
+            state.locked = false;
+            state.crossingCount = 0;
+            state.justResolved = true;
+            state.visualSeverity = 1.0;
+
+            state.releaseLureIndex = lureIndex;
+            state.releaseLineIndex = lineIndex;
+
+            state.activeLureIndex = null;
+            state.activeLineIndex = null;
         }
     
         /*
-          Primo attraversamento della direzione: blocca in MAX.
-          Secondo attraversamento della stessa direzione: sblocca.
-          Attraversamenti dell'altra direzione mentre è bloccato vengono ignorati.
+          Primo attraversamento della coppia non ordinata: blocca in MAX.
+          Secondo attraversamento della stessa coppia non ordinata: sblocca.
+          Se entrambi i terminali generano un evento nello stesso frame,
+          la coppia conta comunque un solo attraversamento.
         */
-        if (eventAB) {
-            if (!state.locked) {
-                startCrossing(i, j);
+        const hasPairEvent = eventAB || eventBA;
+
+        if (hasPairEvent) {
+            const eventLureIndex = eventAB ? i : j;
+            const eventLineIndex = eventAB ? j : i;
+
+            if (state.locked || state.crossingCount === 1) {
+                resolveCrossing(eventLureIndex, eventLineIndex);
             } else {
-                tryResolveCrossing(i, j);
-            }
-        }
-    
-        if (eventBA) {
-            if (!state.locked) {
-                startCrossing(j, i);
-            } else {
-                tryResolveCrossing(j, i);
+                startCrossing(eventLureIndex, eventLineIndex);
             }
         }
     
