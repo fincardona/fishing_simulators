@@ -1,4 +1,9 @@
 User-agent: *
 Allow: /
+Disallow: /fishing_simulators/tests/
+Disallow: /fishing_simulators/*.py$
+Disallow: /fishing_simulators/README.md
+Disallow: /fishing_simulators/LICENSE.txt
+Disallow: /fishing_simulators/requirements.txt
 
 Sitemap: https://fincardona.github.io/fishing_simulators/sitemap.xml
